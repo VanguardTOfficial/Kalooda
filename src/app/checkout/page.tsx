@@ -1,0 +1,168 @@
+"use client";
+
+import { useState } from "react";
+import { useCart } from "@/contexts/cart-context";
+import { Header } from "@/components/header";
+import { CartDrawer } from "@/components/cart-drawer";
+import { CheckCircle, ArrowLeft, Loader2 } from "lucide-react";
+import Link from "next/link";
+
+export default function CheckoutPage() {
+  const { items, totalPrice, clearCart } = useCart();
+  const [cartOpen, setCartOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [orderId, setOrderId] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!items.length) return;
+    setSubmitting(true);
+
+    try {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer_name: name,
+          customer_phone: phone,
+          items: items.map((i) => ({
+            product_id: i.product.id,
+            product_name: i.product.name,
+            quantity: i.quantity,
+            unit_price: i.product.price,
+          })),
+          total_price: totalPrice,
+        }),
+      });
+      const data = await res.json();
+      setOrderId(data.display_id ?? data.id ?? "confirmed");
+      clearCart();
+    } catch {
+      alert("Failed to place order. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (orderId) {
+    return (
+      <>
+        <Header onCartClick={() => setCartOpen(true)} />
+        <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+        <main className="mx-auto flex max-w-lg flex-col items-center px-4 py-24 text-center">
+          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100">
+            <CheckCircle className="h-10 w-10 text-emerald-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-stone-900">
+            Order Placed!
+          </h1>
+          <p className="mt-2 text-stone-500">
+            Your order <span className="font-semibold text-primary">{orderId}</span>{" "}
+            is being prepared. A driver will be notified shortly.
+          </p>
+          <Link
+            href="/"
+            className="mt-8 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-white shadow-sm hover:bg-primary-dark transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Continue Shopping
+          </Link>
+        </main>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Header onCartClick={() => setCartOpen(true)} />
+      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+
+      <main className="mx-auto max-w-lg px-4 py-10">
+        <Link
+          href="/"
+          className="mb-6 inline-flex items-center gap-1 text-sm text-stone-500 hover:text-primary transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to shop
+        </Link>
+
+        <h1 className="text-2xl font-bold text-stone-900">Checkout</h1>
+
+        {items.length === 0 ? (
+          <p className="mt-8 text-center text-stone-400">
+            Your cart is empty.{" "}
+            <Link href="/" className="text-primary underline">
+              Browse products
+            </Link>
+          </p>
+        ) : (
+          <>
+            <div className="mt-6 rounded-xl border border-stone-200 bg-white p-4">
+              <h2 className="mb-3 text-sm font-semibold text-stone-700">
+                Order Summary
+              </h2>
+              <ul className="divide-y divide-stone-100">
+                {items.map((item) => (
+                  <li
+                    key={item.product.id}
+                    className="flex items-center justify-between py-2 text-sm"
+                  >
+                    <span className="text-stone-700">
+                      {item.product.name} &times; {item.quantity}
+                    </span>
+                    <span className="font-semibold text-stone-900">
+                      ${(item.product.price * item.quantity).toFixed(2)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-3 flex items-center justify-between border-t border-stone-200 pt-3">
+                <span className="font-semibold text-stone-700">Total</span>
+                <span className="text-lg font-bold text-primary">
+                  ${totalPrice.toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-700">
+                  Name
+                </label>
+                <input
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  placeholder="Your name"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-stone-700">
+                  Phone
+                </label>
+                <input
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                  placeholder="+1234567890"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-white shadow-sm hover:bg-primary-dark transition-colors disabled:opacity-50"
+              >
+                {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                {submitting ? "Placing Order..." : "Place Order"}
+              </button>
+            </form>
+          </>
+        )}
+      </main>
+    </>
+  );
+}
