@@ -68,7 +68,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
                       {item.product.name}
                     </p>
                     <p className="text-xs text-stone-500">
-                      ${item.product.price.toFixed(2)} {t("each")}
+                      ₪{item.product.price.toFixed(2)} {t("each")}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -109,7 +109,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-stone-600">{t("total")}</span>
               <span className="text-xl font-bold text-stone-900">
-                ${totalPrice.toFixed(2)}
+                ₪{totalPrice.toFixed(2)}
               </span>
             </div>
             <Link

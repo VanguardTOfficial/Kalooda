@@ -4,23 +4,24 @@
 
 ## Up Next
 
-### 1. Seed real drivers into Supabase
-- Insert real driver data into the `drivers` table
-
-### 3. Full frontend redesign
+### 1. Full frontend redesign
 - New theme, color palette, and typography
 - New logo / brand identity
 - Redesign all pages: storefront, checkout, admin, delivery driver page
 - Keep layout structure but refresh visual style
 
-### 2. Seed real products from business owner into Supabase
-- Collect product list from business owner (name, description, price, category, allergens, stock)
-- Write a new migration or seed script to insert into Supabase `products` table
-- Replace current mock/demo products
-
-## Backlog
+### 2. Customer order history page
+- Customer can view current (active) and past (completed) orders
+- Show relevant order details: order number, date, items, quantities, total price, and status
+- Distinguish between active orders (e.g. pending, preparing, out for delivery) and past orders (delivered, cancelled)
+- Accessible from the customer-facing side (e.g. via a "My Orders" link)
 
 ## Done
+
+### Seed real products from business owner into Supabase
+- ~~Collected product list from business owner (4 products, 3 categories, bilingual)~~
+- ~~Migration `20260330100000_seed_real_products.sql` replaces demo data with real products~~
+- ~~Pushed migration to remote Supabase~~
 
 ### Split admin into two pages
 - ~~**Dashboard** (`/admin`) — order management + product availability toggles~~

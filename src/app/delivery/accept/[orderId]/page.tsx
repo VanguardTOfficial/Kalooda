@@ -136,7 +136,7 @@ export default function DeliveryAcceptPage({
                 ))}
               </ul>
               <p className="mt-2 text-sm font-semibold text-stone-800">
-                {t("total")}: ${order.total_price.toFixed(2)}
+                {t("total")}: ₪{order.total_price.toFixed(2)}
               </p>
               <p className="text-xs text-stone-500 mt-1">
                 {t("customerLabel")} {order.customer_name}
