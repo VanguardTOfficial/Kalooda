@@ -83,6 +83,56 @@ Enforce strict route protection so that customers can only access customer pages
 **Dependencies**
 - Story 3 (Authentication & authorization) must be completed first.
 
+---
+
+### 5. Input validation & error handling
+- Validate all form fields on the client side (required fields, correct types, length limits, numeric ranges)
+- Show clear, user-friendly error messages for invalid input (e.g. empty name, non-numeric price, missing phone number)
+- Validate on the server side / API routes as well — never trust client input
+- Handle edge cases: submitting empty forms, special characters, extremely long strings, negative numbers, zero quantities
+- Show feedback for async failures (network errors, Supabase errors) — not just silent failures
+- Prevent duplicate submissions (disable submit button while a request is in flight)
+- Cover all user-facing forms: checkout, sign-up, sign-in, add/edit product, add driver, order actions
+
+---
+
+### 6. Realtime new order notifications in admin dashboard
+- The admin dashboard already subscribes to Supabase Realtime for order/delivery updates, but verify it reliably reflects **new** incoming orders without requiring a page refresh
+- Confirm the Supabase Realtime channel is subscribing to `INSERT` events on the `orders` table, not just `UPDATE`
+- Add a visible indicator (badge, sound, or toast) when a new order arrives so the admin doesn't miss it
+- Test across multiple devices/tabs to confirm no missed events or stale state
+- Ensure the subscription reconnects automatically after a network drop
+
+---
+
+### 7. Image storage & optimization
+- Currently no real product images — find a suitable storage solution before the frontend redesign
+- **Options to evaluate:** Supabase Storage, Cloudinary (free tier), or Vercel Blob
+- Key requirements: CDN delivery, automatic format conversion (WebP/AVIF), responsive resizing (serve smaller images to mobile), and caching headers
+- Implement lazy loading and `next/image` with proper `sizes` and `quality` props to avoid eating bandwidth on mobile
+- Add a caching strategy so repeat visitors don't re-fetch the same images (leverage CDN edge caching + browser cache)
+- Consider a consistent image upload flow in `/admin/functions` (file picker → upload to storage → save URL to DB)
+
+---
+
+### 8. AI chatbot — product availability & allergen awareness
+- A basic chatbot using GPT-4o-mini already exists and receives live product data in its system prompt
+- Enhance it to also reflect **real-time availability** (i.e., products marked `unavailable_today = true` should be excluded or flagged in responses)
+- Ensure allergen and ingredient queries return accurate, up-to-date answers based on actual DB values (not stale injected data)
+- Refresh the product data injected into the system prompt on each request rather than caching it
+- Add bilingual support — chatbot should respond in the same language the user is writing in (Arabic or English)
+
+---
+
+### 9. Error visibility & monitoring on Vercel (free tier)
+- Vercel free tier only retains logs for 1 hour — investigate options for longer-lived error reporting
+- **Options to evaluate:**
+  - **Sentry** (free tier) — captures exceptions with stack traces, user context, and breadcrumbs; integrates with Next.js in a few lines
+  - **LogFlare / Axiom** — Vercel's log drain partners; Axiom has a free tier and a native Vercel integration for streaming all logs
+  - **Vercel Analytics + Speed Insights** — already available on free tier for performance data, not errors
+- Goal: when something breaks in production, know *what* failed, *where*, and ideally *which user/order* was affected
+- At minimum, add structured `console.error` calls with context (order ID, route, user action) so whatever logging solution is chosen captures useful data
+
 ## Done
 
 ### Seed real products from business owner into Supabase
