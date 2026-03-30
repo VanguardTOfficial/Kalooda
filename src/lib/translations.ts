@@ -118,6 +118,18 @@ export const translations = {
     productDeleted: "Product deleted.",
     productDeleteFailed: "Failed to delete product.",
 
+    // Categories
+    categories: "Categories",
+    addCategory: "Add Category",
+    categoryName: "Name",
+    categoryNameAr: "Name (Arabic)",
+    categoryNamePlaceholder: "Category name",
+    categoryNameArPlaceholder: "اسم الفئة",
+    removeCategory: "Remove",
+    noCategories: "No categories yet.",
+    categoryAddFailed: "Failed to add category.",
+    confirmDeleteCategory: "Are you sure you want to remove this category? Products in this category will become uncategorized.",
+
     // Drivers
     drivers: "Drivers",
     driverName: "Name",
@@ -261,6 +273,18 @@ export const translations = {
     productSaveFailed: "فشل في حفظ المنتج.",
     productDeleted: "تم حذف المنتج.",
     productDeleteFailed: "فشل في حذف المنتج.",
+
+    // Categories
+    categories: "الفئات",
+    addCategory: "إضافة فئة",
+    categoryName: "الاسم",
+    categoryNameAr: "الاسم (عربي)",
+    categoryNamePlaceholder: "اسم الفئة",
+    categoryNameArPlaceholder: "اسم الفئة",
+    removeCategory: "إزالة",
+    noCategories: "لا توجد فئات بعد.",
+    categoryAddFailed: "فشل في إضافة الفئة.",
+    confirmDeleteCategory: "هل أنت متأكد من إزالة هذه الفئة؟ ستصبح المنتجات في هذه الفئة بدون تصنيف.",
 
     // Drivers
     drivers: "السائقون",

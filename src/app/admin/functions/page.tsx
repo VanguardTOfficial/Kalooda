@@ -13,6 +13,7 @@ import {
   Truck,
   CheckCircle,
   ClipboardList,
+  Tag,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
 import type { Product, Category, Driver, Order } from "@/types/database";
@@ -120,6 +121,11 @@ export default function FunctionsPage() {
 
   // --- Orders state ---
   const [orders, setOrders] = useState<Order[]>([]);
+
+  // --- Categories state ---
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryNameAr, setNewCategoryNameAr] = useState("");
+  const [addingCategory, setAddingCategory] = useState(false);
 
   // --- Drivers state ---
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -283,6 +289,47 @@ export default function FunctionsPage() {
       setOrders((prev) => prev.filter((o) => o.id !== orderId));
     } catch {
       alert(t("orderDeleteFailed"));
+    }
+  }
+
+  // --- Category handlers ---
+  async function addCategory(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newCategoryName.trim() || addingCategory) return;
+    setAddingCategory(true);
+    try {
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newCategoryName.trim(),
+          name_ar: newCategoryNameAr.trim() || null,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const category: Category = await res.json();
+      setCategories((prev) => [...prev, category].sort((a, b) => a.name.localeCompare(b.name)));
+      setNewCategoryName("");
+      setNewCategoryNameAr("");
+    } catch {
+      alert(t("categoryAddFailed"));
+    } finally {
+      setAddingCategory(false);
+    }
+  }
+
+  async function removeCategory(id: string) {
+    if (!confirm(t("confirmDeleteCategory"))) return;
+    try {
+      const res = await fetch("/api/categories", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error();
+      setCategories((prev) => prev.filter((c) => c.id !== id));
+    } catch {
+      console.error("Failed to remove category");
     }
   }
 
@@ -592,6 +639,109 @@ export default function FunctionsPage() {
                       className="px-4 py-12 text-center text-stone-400"
                     >
                       {t("noProductsYet")}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Category Management ─── */}
+      <section className="mt-10">
+        <div className="mb-4 flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50">
+            <Tag className="h-4 w-4 text-amber-600" />
+          </div>
+          <h2 className="text-lg font-semibold text-stone-900">
+            {t("categories")}
+          </h2>
+        </div>
+
+        <form
+          onSubmit={addCategory}
+          className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+        >
+          <div className="flex-1">
+            <label className="mb-1 block text-xs font-medium text-stone-500">
+              {t("categoryName")}
+            </label>
+            <input
+              type="text"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+              placeholder={t("categoryNamePlaceholder")}
+              required
+              className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="mb-1 block text-xs font-medium text-stone-500">
+              {t("categoryNameAr")}
+            </label>
+            <input
+              type="text"
+              value={newCategoryNameAr}
+              onChange={(e) => setNewCategoryNameAr(e.target.value)}
+              placeholder={t("categoryNameArPlaceholder")}
+              dir="rtl"
+              className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={addingCategory || !newCategoryName.trim()}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Plus className="h-4 w-4" />
+            {addingCategory ? t("adding") : t("addCategory")}
+          </button>
+        </form>
+
+        <div className="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-stone-200 bg-stone-50/50 text-start">
+                  <th className="px-4 py-3 font-semibold text-stone-600 text-start">
+                    {t("categoryName")}
+                  </th>
+                  <th className="px-4 py-3 font-semibold text-stone-600 text-start">
+                    {t("categoryNameAr")}
+                  </th>
+                  <th className="px-4 py-3 font-semibold text-stone-600 text-start w-20" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {categories.map((cat) => (
+                  <tr key={cat.id}>
+                    <td className="px-4 py-3 font-medium text-stone-900">
+                      {cat.name}
+                    </td>
+                    <td className="px-4 py-3 text-stone-600" dir="rtl">
+                      {cat.name_ar || (
+                        <span className="text-stone-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => removeCategory(cat.id)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        {t("removeCategory")}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {categories.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={3}
+                      className="px-4 py-12 text-center text-stone-400"
+                    >
+                      {t("noCategories")}
                     </td>
                   </tr>
                 )}
