@@ -37,7 +37,7 @@ PRODUCT DATA:
 ${products
   .map(
     (p) =>
-      `- ${p.name} ($${p.price}) | Allergens: ${p.allergens.length ? p.allergens.join(", ") : "none"} | Ingredients: ${p.ingredients}`
+      `- ${p.name} (₪${p.price}) | Allergens: ${p.allergens.length ? p.allergens.join(", ") : "none"} | Ingredients: ${p.ingredients}`
   )
   .join("\n")}
 
@@ -147,7 +147,7 @@ function fallbackReply(
   );
   if (matchedProduct) {
     return NextResponse.json({
-      reply: `${matchedProduct.name} ($${matchedProduct.price}) — ${matchedProduct.description}\nIngredients: ${matchedProduct.ingredients}\nAllergens: ${matchedProduct.allergens.length ? matchedProduct.allergens.join(", ") : "none"}`,
+      reply: `${matchedProduct.name} (₪${matchedProduct.price}) — ${matchedProduct.description}\nIngredients: ${matchedProduct.ingredients}\nAllergens: ${matchedProduct.allergens.length ? matchedProduct.allergens.join(", ") : "none"}`,
     });
   }
 

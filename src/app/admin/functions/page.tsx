@@ -592,7 +592,7 @@ export default function FunctionsPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 font-semibold text-stone-900">
-                        ${p.price.toFixed(2)}
+                        ₪{p.price.toFixed(2)}
                       </td>
                       <td className="px-4 py-3 text-stone-600">
                         {cat ? (locale === "ar" && cat.name_ar ? cat.name_ar : cat.name) : "—"}
@@ -812,7 +812,7 @@ export default function FunctionsPage() {
                           .join(", ")}
                       </td>
                       <td className="px-4 py-3 font-semibold text-stone-900">
-                        ${order.total_price.toFixed(2)}
+                        ₪{order.total_price.toFixed(2)}
                       </td>
                       <td className="px-4 py-3">
                         <span

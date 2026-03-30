@@ -115,7 +115,7 @@ export default function CheckoutPage() {
                       {item.product.name} &times; {item.quantity}
                     </span>
                     <span className="font-semibold text-stone-900">
-                      ${(item.product.price * item.quantity).toFixed(2)}
+                      ₪{(item.product.price * item.quantity).toFixed(2)}
                     </span>
                   </li>
                 ))}
@@ -123,7 +123,7 @@ export default function CheckoutPage() {
               <div className="mt-3 flex items-center justify-between border-t border-stone-200 pt-3">
                 <span className="font-semibold text-stone-700">{t("total")}</span>
                 <span className="text-lg font-bold text-primary">
-                  ${totalPrice.toFixed(2)}
+                  ₪{totalPrice.toFixed(2)}
                 </span>
               </div>
             </div>

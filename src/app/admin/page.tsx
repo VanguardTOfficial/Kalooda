@@ -288,7 +288,7 @@ export default function AdminDashboard() {
                         .join(", ")}
                     </td>
                     <td className="px-4 py-3 font-semibold text-stone-900">
-                      ${order.total_price.toFixed(2)}
+                      ₪{order.total_price.toFixed(2)}
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -392,7 +392,7 @@ export default function AdminDashboard() {
                   {product.name}
                 </p>
                 <p className="text-xs text-stone-500">
-                  ${product.price.toFixed(2)}
+                  ₪{product.price.toFixed(2)}
                 </p>
               </div>
               <button
