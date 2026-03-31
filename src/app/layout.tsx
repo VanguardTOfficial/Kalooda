@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Noto_Sans_Arabic } from "next/font/google";
 import { CartProvider } from "@/contexts/cart-context";
 import { LanguageProvider } from "@/contexts/language-context";
+import { AuthProvider } from "@/contexts/auth-context";
 import { PWARegister } from "@/components/pwa-register";
 import "./globals.css";
 
@@ -53,10 +54,12 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col font-sans">
         <LanguageProvider>
-          <CartProvider>
-            {children}
-            <PWARegister />
-          </CartProvider>
+          <AuthProvider>
+            <CartProvider>
+              {children}
+              <PWARegister />
+            </CartProvider>
+          </AuthProvider>
         </LanguageProvider>
       </body>
     </html>

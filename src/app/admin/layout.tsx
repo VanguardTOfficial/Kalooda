@@ -2,14 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Candy, LayoutDashboard, Settings } from "lucide-react";
+import { Candy, LayoutDashboard, Settings, LogOut } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
+import { useAuth } from "@/contexts/auth-context";
 import { LanguageSwitcher } from "@/components/language-switcher";
-
-const navItems = [
-  { href: "/admin", labelKey: "dashboard" as const, icon: LayoutDashboard },
-  { href: "/admin/functions", labelKey: "functions" as const, icon: Settings },
-];
 
 export default function AdminLayout({
   children,
@@ -18,6 +14,16 @@ export default function AdminLayout({
 }) {
   const pathname = usePathname();
   const { t } = useLanguage();
+  const { profile, signOut } = useAuth();
+
+  const isSuperAdmin = profile?.role === "super_admin";
+
+  const navItems = [
+    { href: "/admin", labelKey: "dashboard" as const, icon: LayoutDashboard },
+    ...(isSuperAdmin
+      ? [{ href: "/admin/functions", labelKey: "functions" as const, icon: Settings }]
+      : []),
+  ];
 
   return (
     <div className="min-h-screen bg-stone-50">
@@ -28,7 +34,19 @@ export default function AdminLayout({
             <span className="text-lg font-bold text-stone-900">SweetDrop</span>
           </Link>
           <div className="flex items-center gap-3">
+            {profile?.full_name && (
+              <span className="hidden sm:block text-sm text-stone-600">
+                {profile.full_name}
+              </span>
+            )}
             <LanguageSwitcher />
+            <button
+              onClick={signOut}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+              {t("signOut")}
+            </button>
           </div>
         </div>
 

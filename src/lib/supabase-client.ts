@@ -1,23 +1,11 @@
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
-let _client: SupabaseClient | undefined;
-
-function getSupabaseClient(): SupabaseClient {
-  if (!_client) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error(
-        "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY"
-      );
-    }
-    _client = createClient(supabaseUrl, supabaseAnonKey);
-  }
-  return _client;
+export function getSupabaseBrowserClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { isSingleton: true }
+  );
 }
 
-export const supabase = new Proxy({} as SupabaseClient, {
-  get(_target, prop) {
-    return (getSupabaseClient() as unknown as Record<string | symbol, unknown>)[prop];
-  },
-});
+export const supabase = getSupabaseBrowserClient();

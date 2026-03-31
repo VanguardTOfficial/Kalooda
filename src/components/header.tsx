@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { ShoppingCart, Candy, LayoutDashboard } from "lucide-react";
+import { ShoppingCart, Candy, LayoutDashboard, LogOut, LogIn } from "lucide-react";
 import { useCart } from "@/contexts/cart-context";
 import { useLanguage } from "@/contexts/language-context";
+import { useAuth } from "@/contexts/auth-context";
 import { LanguageSwitcher } from "./language-switcher";
 
 interface HeaderProps {
@@ -13,6 +14,10 @@ interface HeaderProps {
 export function Header({ onCartClick }: HeaderProps) {
   const { totalItems } = useCart();
   const { t } = useLanguage();
+  const { user, profile, loading, signOut } = useAuth();
+
+  const isAdmin =
+    profile?.role === "admin" || profile?.role === "super_admin";
 
   return (
     <header className="sticky top-0 z-40 border-b border-rose-200 bg-white/80 backdrop-blur-md">
@@ -26,13 +31,35 @@ export function Header({ onCartClick }: HeaderProps) {
 
         <div className="flex items-center gap-3">
           <LanguageSwitcher />
-          <Link
-            href="/admin"
-            className="hidden sm:flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 transition-colors"
-          >
-            <LayoutDashboard className="h-4 w-4" />
-            {t("admin")}
-          </Link>
+
+          {!loading && isAdmin && (
+            <Link
+              href="/admin"
+              className="hidden sm:flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 transition-colors"
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              {t("admin")}
+            </Link>
+          )}
+
+          {!loading && user ? (
+            <button
+              onClick={signOut}
+              className="hidden sm:flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+              {t("signOut")}
+            </button>
+          ) : !loading ? (
+            <Link
+              href="/sign-in"
+              className="hidden sm:flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 transition-colors"
+            >
+              <LogIn className="h-4 w-4" />
+              {t("signIn")}
+            </Link>
+          ) : null}
+
           <button
             onClick={onCartClick}
             className="relative flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary-dark transition-colors"
