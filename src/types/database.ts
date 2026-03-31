@@ -31,6 +31,7 @@ export interface Order {
   total_price: number;
   status: "pending" | "assigned" | "out_for_delivery" | "delivered";
   created_at: string;
+  delivery_token: string;
 }
 
 export interface OrderItem {

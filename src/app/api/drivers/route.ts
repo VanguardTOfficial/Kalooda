@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { requireRole, isAuthorized } from "@/lib/require-role";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authResult = await requireRole(req, ["admin", "super_admin"]);
+  if (!isAuthorized(authResult)) return authResult;
+
   try {
     const { data, error } = await supabaseAdmin
       .from("drivers")
@@ -20,6 +24,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const authResult = await requireRole(req, ["admin", "super_admin"]);
+  if (!isAuthorized(authResult)) return authResult;
+
   try {
     const body = await req.json();
     const { name, phone } = body;
@@ -49,6 +56,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const authResult = await requireRole(req, ["admin", "super_admin"]);
+  if (!isAuthorized(authResult)) return authResult;
+
   try {
     const { id } = await req.json();
 

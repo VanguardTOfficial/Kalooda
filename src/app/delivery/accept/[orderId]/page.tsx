@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Truck,
   CheckCircle,
@@ -30,13 +31,15 @@ export default function DeliveryAcceptPage({
   params: Promise<{ orderId: string }>;
 }) {
   const { orderId } = use(params);
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token") ?? "";
   const { t } = useLanguage();
   const [order, setOrder] = useState<OrderData | null>(null);
   const [status, setStatus] = useState<DeliveryStatus>("loading");
   const [driverName, setDriverName] = useState("");
 
   useEffect(() => {
-    fetch(`/api/orders/${orderId}`)
+    fetch(`/api/orders/${orderId}?token=${encodeURIComponent(token)}`)
       .then((r) => {
         if (!r.ok) throw new Error("Not found");
         return r.json();
@@ -46,13 +49,13 @@ export default function DeliveryAcceptPage({
         setStatus(found.status === "assigned" ? "accepted" : "idle");
       })
       .catch(() => setStatus("error"));
-  }, [orderId]);
+  }, [orderId, token]);
 
   async function handleAccept() {
     if (!driverName.trim()) return;
     setStatus("accepting");
     try {
-      const res = await fetch(`/api/orders/${orderId}/status`, {
+      const res = await fetch(`/api/orders/${orderId}/status?token=${encodeURIComponent(token)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "assigned" }),

@@ -137,10 +137,10 @@ export default function AdminDashboard() {
     }
   }
 
-  function copyDeliveryLink(orderId: string) {
-    const link = `${window.location.origin}/delivery/accept/${orderId}`;
+  function copyDeliveryLink(order: Order) {
+    const link = `${window.location.origin}/delivery/accept/${order.id}?token=${order.delivery_token}`;
     navigator.clipboard.writeText(link);
-    setCopiedId(orderId);
+    setCopiedId(order.id);
     setTimeout(() => setCopiedId(null), 2000);
   }
 
@@ -303,7 +303,7 @@ export default function AdminDashboard() {
                         {order.status === "pending" && (
                           <button
                             onClick={() =>
-                              copyDeliveryLink(order.id)
+                              copyDeliveryLink(order)
                             }
                             className="inline-flex items-center gap-1 rounded-lg border border-stone-200 px-2.5 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-100 transition-colors"
                           >

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
+import { requireRole, isAuthorized } from "@/lib/require-role";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authResult = await requireRole(req, ["admin", "super_admin"]);
+  if (!isAuthorized(authResult)) return authResult;
+
   try {
     const { id } = await params;
     const { unavailable_today } = await req.json();
