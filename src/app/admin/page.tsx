@@ -5,41 +5,33 @@ import {
   RefreshCw,
   Clock,
   Truck,
-  CheckCircle,
   Package,
-  ExternalLink,
-  Copy,
-  Check,
   Users,
   Phone,
 } from "lucide-react";
-import Link from "next/link";
 import { useLanguage } from "@/contexts/language-context";
 import { getSupabaseAdminBrowser } from "@/lib/supabase-client-admin";
 import type { Order, Product, Driver } from "@/types/database";
 
 const statusIcons: Record<string, React.ElementType> = {
   pending: Clock,
-  assigned: Package,
+  preparing: Package,
   out_for_delivery: Truck,
-  delivered: CheckCircle,
 };
 
 const statusColors: Record<string, { color: string; bg: string }> = {
   pending: { color: "text-amber-700", bg: "bg-amber-100" },
-  assigned: { color: "text-blue-700", bg: "bg-blue-100" },
+  preparing: { color: "text-blue-700", bg: "bg-blue-100" },
   out_for_delivery: { color: "text-purple-700", bg: "bg-purple-100" },
-  delivered: { color: "text-emerald-700", bg: "bg-emerald-100" },
 };
 
 const statusTranslationKeys: Record<
   string,
-  "pending" | "assigned" | "outForDelivery" | "delivered"
+  "pending" | "preparing" | "outForDelivery"
 > = {
   pending: "pending",
-  assigned: "assigned",
+  preparing: "preparing",
   out_for_delivery: "outForDelivery",
-  delivered: "delivered",
 };
 
 export default function AdminDashboard() {
@@ -49,7 +41,6 @@ export default function AdminDashboard() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [flashId, setFlashId] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -138,13 +129,6 @@ export default function AdminDashboard() {
     }
   }
 
-  function copyDeliveryLink(order: Order) {
-    const link = `${window.location.origin}/delivery/accept/${order.id}?token=${order.delivery_token}`;
-    navigator.clipboard.writeText(link);
-    setCopiedId(order.id);
-    setTimeout(() => setCopiedId(null), 2000);
-  }
-
   async function toggleAvailability(product: Product) {
     const next = !product.unavailable_today;
     setProducts((prev) =>
@@ -167,13 +151,7 @@ export default function AdminDashboard() {
     }
   }
 
-  const pendingCount = orders.filter((o) => o.status === "pending").length;
-  const statusKeys = [
-    "pending",
-    "assigned",
-    "out_for_delivery",
-    "delivered",
-  ] as const;
+  const statusKeys = ["pending", "preparing", "out_for_delivery"] as const;
 
   return (
     <>
@@ -226,12 +204,6 @@ export default function AdminDashboard() {
           );
         })}
       </div>
-
-      {pendingCount > 0 && (
-        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          <strong>{pendingCount}</strong> {t("ordersAwaiting")}
-        </div>
-      )}
 
       {/* Orders table */}
       <div className="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
@@ -300,60 +272,19 @@ export default function AdminDashboard() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {order.status === "pending" && (
-                          <button
-                            onClick={() =>
-                              copyDeliveryLink(order)
-                            }
-                            className="inline-flex items-center gap-1 rounded-lg border border-stone-200 px-2.5 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-100 transition-colors"
-                          >
-                            {copiedId === order.id ? (
-                              <>
-                                <Check className="h-3 w-3 text-emerald-600" />
-                                {t("copied")}
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="h-3 w-3" />
-                                {t("driverLink")}
-                              </>
-                            )}
-                          </button>
-                        )}
-                        {order.status !== "delivered" && (
-                          <select
-                            value={order.status}
-                            onChange={(e) =>
-                              updateStatus(
-                                order.id,
-                                e.target.value
-                              )
-                            }
-                            className="rounded-lg border border-stone-200 px-2 py-1.5 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                          >
-                            <option value="pending">
-                              {t("pending")}
-                            </option>
-                            <option value="assigned">
-                              {t("assigned")}
-                            </option>
-                            <option value="out_for_delivery">
-                              {t("outForDelivery")}
-                            </option>
-                            <option value="delivered">
-                              {t("delivered")}
-                            </option>
-                          </select>
-                        )}
-                        <Link
-                          href={`/delivery/accept/${order.id}`}
-                          className="inline-flex items-center gap-1 rounded-lg border border-stone-200 px-2 py-1.5 text-xs font-medium text-stone-500 hover:bg-stone-100 transition-colors"
-                          target="_blank"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                        </Link>
-                      </div>
+                      <select
+                        value={order.status}
+                        onChange={(e) =>
+                          updateStatus(order.id, e.target.value)
+                        }
+                        className="rounded-lg border border-stone-200 px-2 py-1.5 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="pending">{t("pending")}</option>
+                        <option value="preparing">{t("preparing")}</option>
+                        <option value="out_for_delivery">
+                          {t("outForDelivery")}
+                        </option>
+                      </select>
                     </td>
                   </tr>
                 );

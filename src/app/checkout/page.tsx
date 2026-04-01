@@ -6,7 +6,7 @@ import { useLanguage } from "@/contexts/language-context";
 import { useAuth } from "@/contexts/auth-context";
 import { Header } from "@/components/header";
 import { CartDrawer } from "@/components/cart-drawer";
-import { CheckCircle, ArrowLeft, Loader2 } from "lucide-react";
+import { CheckCircle, ArrowLeft, Loader2, ClipboardList } from "lucide-react";
 import Link from "next/link";
 
 export default function CheckoutPage() {
@@ -103,11 +103,11 @@ export default function CheckoutPage() {
             {t("orderConfirmation")}
           </p>
           <Link
-            href="/"
+            href="/account/orders"
             className="mt-8 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-white shadow-sm hover:bg-primary-dark transition-colors"
           >
-            <ArrowLeft className="h-4 w-4" />
-            {t("continueShopping")}
+            <ClipboardList className="h-4 w-4" />
+            {t("myOrders")}
           </Link>
         </main>
       </>

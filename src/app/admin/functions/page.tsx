@@ -11,7 +11,6 @@ import {
   Package,
   Clock,
   Truck,
-  CheckCircle,
   ClipboardList,
   Tag,
 } from "lucide-react";
@@ -20,26 +19,23 @@ import type { Product, Category, Driver, Order } from "@/types/database";
 
 const statusIcons: Record<string, React.ElementType> = {
   pending: Clock,
-  assigned: Package,
+  preparing: Package,
   out_for_delivery: Truck,
-  delivered: CheckCircle,
 };
 
 const statusColors: Record<string, { color: string; bg: string }> = {
   pending: { color: "text-amber-700", bg: "bg-amber-100" },
-  assigned: { color: "text-blue-700", bg: "bg-blue-100" },
+  preparing: { color: "text-blue-700", bg: "bg-blue-100" },
   out_for_delivery: { color: "text-purple-700", bg: "bg-purple-100" },
-  delivered: { color: "text-emerald-700", bg: "bg-emerald-100" },
 };
 
 const statusTranslationKeys: Record<
   string,
-  "pending" | "assigned" | "outForDelivery" | "delivered"
+  "pending" | "preparing" | "outForDelivery"
 > = {
   pending: "pending",
-  assigned: "assigned",
+  preparing: "preparing",
   out_for_delivery: "outForDelivery",
-  delivered: "delivered",
 };
 
 interface ProductFormData {

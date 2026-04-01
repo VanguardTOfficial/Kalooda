@@ -11,6 +11,10 @@ export function getSupabaseCustomerBrowser() {
       {
         isSingleton: false,
         cookieOptions: customerAuthCookieOptions,
+        auth: {
+          lock: async <R>(_name: string, _acquireTimeout: number, fn: () => Promise<R>) =>
+            fn(),
+        },
       }
     );
   }

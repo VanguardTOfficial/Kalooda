@@ -30,7 +30,7 @@ export interface Order {
   customer_phone: string | null;
   items: OrderItem[];
   total_price: number;
-  status: "pending" | "assigned" | "out_for_delivery" | "delivered";
+  status: "pending" | "preparing" | "out_for_delivery";
   created_at: string;
   delivery_token: string;
 }
