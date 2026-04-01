@@ -8,9 +8,9 @@ import {
   XCircle,
   Loader2,
   Package,
-  Candy,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useLanguage } from "@/contexts/language-context";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { SiteFooter } from "@/components/site-footer";

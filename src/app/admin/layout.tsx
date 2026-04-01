@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Candy, LayoutDashboard, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Settings, LogOut } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
 import { useAdminAuth } from "@/contexts/admin-auth-context";
 import { LanguageSwitcher } from "@/components/language-switcher";

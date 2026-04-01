@@ -3,7 +3,11 @@
 import { useLanguage } from "@/contexts/language-context";
 import { Globe } from "lucide-react";
 
-export function LanguageSwitcher() {
+interface LanguageSwitcherProps {
+  className?: string;
+}
+
+export function LanguageSwitcher({ className }: LanguageSwitcherProps) {
   const { locale, setLocale, t } = useLanguage();
 
   return (

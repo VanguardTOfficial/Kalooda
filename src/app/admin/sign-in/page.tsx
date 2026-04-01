@@ -2,8 +2,9 @@
 
 import { useState, Suspense } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { Candy, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useAdminAuth } from "@/contexts/admin-auth-context";
 import { useLanguage } from "@/contexts/language-context";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -68,7 +69,7 @@ function AdminSignInContent() {
           </span>
           <span className="font-serif text-2xl font-semibold text-lux-espresso">SweetDrop</span>
         </Link>
-        <LanguageSwitcher />
+        <LanguageSwitcher className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-200 transition-colors" />
       </div>
 
       <div className="w-full max-w-sm rounded-lg border border-lux-border bg-lux-surface-elevated p-8 shadow-[0_24px_60px_-24px_rgba(26,21,18,0.35)]">
