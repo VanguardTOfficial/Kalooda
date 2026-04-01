@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { getSafeNextPath } from "@/lib/auth-redirect";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
   const code = searchParams.get("code");
+  const next = getSafeNextPath(searchParams.get("next"));
 
   if (code) {
     const supabase = await createSupabaseServerClient();
@@ -21,10 +23,11 @@ export async function GET(request: NextRequest) {
           .eq("id", user.id)
           .single();
 
-        const target =
+        const defaultTarget =
           profile?.role === "admin" || profile?.role === "super_admin"
             ? "/admin"
             : "/";
+        const target = next ?? defaultTarget;
 
         return NextResponse.redirect(new URL(target, origin));
       }

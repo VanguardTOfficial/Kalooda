@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createSupabaseProxyClient } from "@/lib/supabase-proxy";
+import { getSafeNextPath } from "@/lib/auth-redirect";
 
-const PUBLIC_ROUTES = ["/", "/checkout", "/auth-error"];
+const PUBLIC_ROUTES = ["/", "/auth-error"];
 const PUBLIC_PREFIXES = ["/delivery/accept/", "/api/", "/auth/callback"];
 const AUTH_PAGES = ["/sign-in", "/sign-up"];
 
@@ -48,6 +49,8 @@ export async function proxy(request: NextRequest) {
 
   if (!claims) {
     const signInUrl = new URL("/sign-in", request.url);
+    const next = getSafeNextPath(pathname + request.nextUrl.search);
+    if (next) signInUrl.searchParams.set("next", next);
     return NextResponse.redirect(signInUrl);
   }
 

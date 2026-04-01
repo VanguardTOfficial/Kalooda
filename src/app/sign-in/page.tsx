@@ -7,6 +7,7 @@ import { Candy, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useLanguage } from "@/contexts/language-context";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { getSafeNextPath } from "@/lib/auth-redirect";
 
 export default function SignInPage() {
   return (
@@ -27,6 +28,10 @@ function SignInContent() {
   const { t } = useLanguage();
   const searchParams = useSearchParams();
   const oauthError = searchParams.get("error") === "oauth";
+  const nextSafe = getSafeNextPath(searchParams.get("next"));
+  const signUpHref = nextSafe
+    ? `/sign-up?next=${encodeURIComponent(nextSafe)}`
+    : "/sign-up";
   const confirmEmail = searchParams.get("message") === "confirm-email";
 
   const [email, setEmail] = useState("");
@@ -80,7 +85,9 @@ function SignInContent() {
         <div className="flex flex-col gap-3 mb-5">
           <button
             type="button"
-            onClick={() => signInWithOAuth("google")}
+            onClick={() =>
+              signInWithOAuth("google", { next: nextSafe })
+            }
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24">
@@ -105,7 +112,9 @@ function SignInContent() {
           </button>
           <button
             type="button"
-            onClick={() => signInWithOAuth("apple")}
+            onClick={() =>
+              signInWithOAuth("apple", { next: nextSafe })
+            }
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-stone-200 bg-stone-900 py-2.5 text-sm font-medium text-white hover:bg-stone-800 transition-colors"
           >
             <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
@@ -177,7 +186,7 @@ function SignInContent() {
         <p className="mt-5 text-center text-sm text-stone-500">
           {t("dontHaveAccount")}{" "}
           <Link
-            href="/sign-up"
+            href={signUpHref}
             className="font-semibold text-primary hover:text-primary-dark"
           >
             {t("signUp")}

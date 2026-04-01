@@ -3,6 +3,7 @@
 import { X, Minus, Plus, ShoppingBag } from "lucide-react";
 import { useCart } from "@/contexts/cart-context";
 import { useLanguage } from "@/contexts/language-context";
+import { useAuth } from "@/contexts/auth-context";
 import Link from "next/link";
 
 interface CartDrawerProps {
@@ -13,6 +14,11 @@ interface CartDrawerProps {
 export function CartDrawer({ open, onClose }: CartDrawerProps) {
   const { items, removeItem, updateQuantity, totalPrice } = useCart();
   const { t, dir } = useLanguage();
+  const { user } = useAuth();
+
+  const checkoutHref = user
+    ? "/checkout"
+    : `/sign-in?next=${encodeURIComponent("/checkout")}`;
 
   return (
     <>
@@ -113,11 +119,11 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
               </span>
             </div>
             <Link
-              href="/checkout"
+              href={checkoutHref}
               onClick={onClose}
               className="block w-full rounded-xl bg-primary py-3 text-center text-sm font-bold text-white shadow-sm hover:bg-primary-dark transition-colors"
             >
-              {t("proceedToCheckout")}
+              {user ? t("proceedToCheckout") : t("signInToCheckout")}
             </Link>
           </div>
         )}
