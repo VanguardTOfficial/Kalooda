@@ -12,9 +12,8 @@ import Link from "next/link";
 
 const STATUS_KEY: Record<Order["status"], TranslationKey> = {
   pending: "pending",
-  assigned: "assigned",
+  preparing: "preparing",
   out_for_delivery: "outForDelivery",
-  delivered: "delivered",
 };
 
 export default function AccountOrdersPage() {

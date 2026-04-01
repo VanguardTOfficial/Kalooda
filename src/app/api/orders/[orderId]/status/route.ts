@@ -11,7 +11,7 @@ export async function PATCH(
     const { status } = await req.json();
     const token = req.nextUrl.searchParams.get("token");
 
-    const validStatuses = ["pending", "assigned", "out_for_delivery", "delivered"];
+    const validStatuses = ["pending", "preparing", "out_for_delivery"];
     if (!validStatuses.includes(status)) {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }

@@ -11,6 +11,11 @@ export function getSupabaseAdminBrowser() {
       {
         isSingleton: false,
         cookieOptions: adminAuthCookieOptions,
+        auth: {
+          // Avoid Web Locks "stolen" errors when getUser / onAuthStateChange / refresh overlap (e.g. Strict Mode, dev).
+          lock: async <R>(_name: string, _acquireTimeout: number, fn: () => Promise<R>) =>
+            fn(),
+        },
       }
     );
   }

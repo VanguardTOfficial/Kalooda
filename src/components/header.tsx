@@ -22,13 +22,19 @@ interface HeaderProps {
 export function Header({ onCartClick }: HeaderProps) {
   const { totalItems } = useCart();
   const { t } = useLanguage();
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, signOut, profile } = useAuth();
   const { profile: adminProfile, loading: adminLoading } = useAdminAuth();
 
-  const hasAdminSession =
-    !adminLoading &&
-    adminProfile &&
-    (adminProfile.role === "admin" || adminProfile.role === "super_admin");
+  const isAdminRole = (p: { role?: string } | null | undefined) =>
+    p != null && (p.role === "admin" || p.role === "super_admin");
+
+  // Prefer the storefront session: a stale sb-admin-auth cookie must not show Admin
+  // while the user is signed in only as a customer (customer sign-out does not clear admin cookies).
+  const showAdminLink =
+    !loading &&
+    (user
+      ? isAdminRole(profile)
+      : !adminLoading && isAdminRole(adminProfile));
 
   return (
     <header className="sticky top-0 z-40 border-b border-rose-200 bg-white/80 backdrop-blur-md">
@@ -46,7 +52,7 @@ export function Header({ onCartClick }: HeaderProps) {
         <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 sm:flex-none sm:gap-3">
           <LanguageSwitcher />
 
-          {!adminLoading && hasAdminSession && (
+          {showAdminLink && (
             <Link
               href="/admin"
               className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 transition-colors sm:px-3"

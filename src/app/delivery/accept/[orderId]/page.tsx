@@ -46,7 +46,9 @@ export default function DeliveryAcceptPage({
       })
       .then((found: OrderData) => {
         setOrder(found);
-        setStatus(found.status === "assigned" ? "accepted" : "idle");
+        if (found.status === "preparing") setStatus("accepted");
+        else if (found.status === "pending") setStatus("idle");
+        else setStatus("error");
       })
       .catch(() => setStatus("error"));
   }, [orderId, token]);
@@ -58,7 +60,7 @@ export default function DeliveryAcceptPage({
       const res = await fetch(`/api/orders/${orderId}/status?token=${encodeURIComponent(token)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "assigned" }),
+        body: JSON.stringify({ status: "preparing" }),
       });
       if (!res.ok) throw new Error();
       setStatus("accepted");
