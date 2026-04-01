@@ -4,8 +4,8 @@
   "description": "Order sweets online with same-day delivery.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#fffbeb",
-  "theme_color": "#e11d48",
+  "background_color": "#ede6db",
+  "theme_color": "#2a1f18",
   "orientation": "portrait-primary",
   "icons": [
     {

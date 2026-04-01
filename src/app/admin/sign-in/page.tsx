@@ -7,13 +7,14 @@ import { Candy, Loader2 } from "lucide-react";
 import { useAdminAuth } from "@/contexts/admin-auth-context";
 import { useLanguage } from "@/contexts/language-context";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { btnPrimaryClass, inputClass, labelClass } from "@/lib/ui-classes";
 
 export default function AdminSignInPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-screen items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="flex min-h-screen items-center justify-center bg-lux-bg">
+          <Loader2 className="h-10 w-10 animate-spin text-lux-gold" aria-hidden />
         </div>
       }
     >
@@ -45,67 +46,69 @@ function AdminSignInContent() {
     setSubmitting(true);
     const err = await signIn(email, password);
     if (err) {
-      setError(
-        err === "forbidden" ? t("adminSignInNoAccess") : err
-      );
+      setError(err === "forbidden" ? t("adminSignInNoAccess") : err);
       setSubmitting(false);
     }
   }
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex min-h-screen items-center justify-center bg-lux-bg">
+        <Loader2 className="h-10 w-10 animate-spin text-lux-gold" aria-hidden />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-stone-100 to-stone-200 px-4">
-      <div className="mb-8 flex items-center gap-4">
-        <Link href="/" className="flex items-center gap-2">
-          <Candy className="h-7 w-7 text-primary" />
-          <span className="text-xl font-bold text-stone-900">SweetDrop</span>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-lux-bg px-4 py-12 pattern-noise">
+      <div className="mb-10 flex items-center gap-4">
+        <Link href="/" className="flex items-center gap-3 group">
+          <span className="flex h-11 w-11 items-center justify-center rounded-md border border-lux-gold/35 bg-lux-espresso text-lux-gold-light">
+            <Candy className="h-6 w-6" aria-hidden />
+          </span>
+          <span className="font-serif text-2xl font-semibold text-lux-espresso">SweetDrop</span>
         </Link>
         <LanguageSwitcher />
       </div>
 
-      <div className="w-full max-w-sm rounded-2xl border border-stone-200 bg-white p-6 shadow-lg">
-        <h1 className="mb-1 text-xl font-bold text-stone-900">
+      <div className="w-full max-w-sm rounded-lg border border-lux-border bg-lux-surface-elevated p-8 shadow-[0_24px_60px_-24px_rgba(26,21,18,0.35)]">
+        <h1 className="font-serif text-2xl font-semibold text-lux-espresso">
           {t("adminSignInTitle")}
         </h1>
-        <p className="mb-6 text-sm text-stone-500">{t("adminSignInSubtitle")}</p>
+        <p className="mt-1 text-sm text-lux-muted">{t("adminSignInSubtitle")}</p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-stone-700 mb-1">
+            <label className={labelClass} htmlFor="admin-email">
               {t("email")}
             </label>
             <input
+              id="admin-email"
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder={t("emailPlaceholder")}
-              className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className={inputClass}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-stone-700 mb-1">
+            <label className={labelClass} htmlFor="admin-password">
               {t("password")}
             </label>
             <input
+              id="admin-password"
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder={t("passwordPlaceholder")}
-              className="w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className={inputClass}
             />
           </div>
 
           {(error ?? urlError) && (
-            <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
               {error ?? urlError}
             </p>
           )}
@@ -113,11 +116,11 @@ function AdminSignInContent() {
           <button
             type="submit"
             disabled={submitting}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-stone-900 py-3 text-sm font-bold text-white shadow-sm hover:bg-stone-800 transition-colors disabled:opacity-50"
+            className={`${btnPrimaryClass} w-full py-3.5 disabled:opacity-50`}
           >
             {submitting ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                 {t("signingIn")}
               </>
             ) : (
@@ -126,10 +129,10 @@ function AdminSignInContent() {
           </button>
         </form>
 
-        <p className="mt-5 text-center text-sm text-stone-500">
+        <p className="mt-6 text-center text-sm text-lux-muted">
           <Link
             href="/sign-in"
-            className="font-semibold text-primary hover:text-primary-dark"
+            className="font-semibold text-lux-gold hover:text-lux-walnut hover:underline"
           >
             {t("adminSignInCustomerLink")}
           </Link>

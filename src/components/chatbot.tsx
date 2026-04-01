@@ -64,28 +64,23 @@ export function Chatbot() {
 
   return (
     <>
-      {/* Toggle button */}
       <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
-        className="fixed bottom-5 end-5 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg hover:bg-primary-dark transition-all hover:scale-105 active:scale-95"
+        className="fixed bottom-5 end-5 z-50 flex h-14 w-14 items-center justify-center rounded-full border border-lux-gold/50 bg-lux-espresso text-lux-cream shadow-[0_8px_30px_rgba(26,21,18,0.35)] transition-[transform,box-shadow] hover:scale-105 hover:shadow-lg active:scale-95"
         aria-label={t("toggleChat")}
       >
         {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
       </button>
 
-      {/* Chat window */}
       {open && (
-        <div className="fixed bottom-22 end-5 z-50 flex h-[28rem] w-[22rem] flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-2xl animate-slide-up">
-          {/* Header */}
-          <div className="flex items-center gap-2 border-b border-stone-100 bg-gradient-to-r from-primary to-primary-dark px-4 py-3">
-            <Bot className="h-5 w-5 text-white" />
-            <span className="text-sm font-bold text-white">{t("sweetBot")}</span>
-            <span className="ms-auto text-xs text-rose-200">
-              {t("chatbotSubtitle")}
-            </span>
+        <div className="fixed bottom-[5.5rem] end-5 z-50 flex h-[28rem] w-[min(100vw-2.5rem,22rem)] flex-col overflow-hidden rounded-lg border border-lux-border bg-lux-surface-elevated shadow-2xl animate-slide-up">
+          <div className="flex items-center gap-2 border-b border-lux-border bg-gradient-to-r from-lux-espresso to-lux-walnut px-4 py-3 text-lux-cream">
+            <Bot className="h-5 w-5 text-lux-gold-light" aria-hidden />
+            <span className="font-serif text-sm font-semibold">{t("sweetBot")}</span>
+            <span className="ms-auto text-xs text-lux-cream/70">{t("chatbotSubtitle")}</span>
           </div>
 
-          {/* Messages */}
           <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-3">
             {messages.map((msg, i) => (
               <div
@@ -95,21 +90,21 @@ export function Chatbot() {
                 <div
                   className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
                     msg.role === "user"
-                      ? "bg-stone-800 text-white"
-                      : "bg-rose-100 text-primary"
+                      ? "bg-lux-espresso text-lux-cream"
+                      : "border border-lux-gold/40 bg-lux-cream text-lux-gold"
                   }`}
                 >
                   {msg.role === "user" ? (
-                    <User className="h-3.5 w-3.5" />
+                    <User className="h-3.5 w-3.5" aria-hidden />
                   ) : (
-                    <Bot className="h-3.5 w-3.5" />
+                    <Bot className="h-3.5 w-3.5" aria-hidden />
                   )}
                 </div>
                 <div
-                  className={`max-w-[75%] rounded-xl px-3 py-2 text-sm leading-relaxed ${
+                  className={`max-w-[78%] rounded-lg px-3 py-2 text-sm leading-relaxed ${
                     msg.role === "user"
-                      ? "bg-stone-800 text-white"
-                      : "bg-stone-100 text-stone-800"
+                      ? "bg-lux-espresso text-lux-cream"
+                      : "border border-lux-border bg-lux-cream/80 text-lux-ink"
                   }`}
                 >
                   {msg.content}
@@ -118,36 +113,35 @@ export function Chatbot() {
             ))}
             {loading && (
               <div className="flex gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-100 text-primary">
-                  <Bot className="h-3.5 w-3.5" />
+                <div className="flex h-7 w-7 items-center justify-center rounded-full border border-lux-gold/40 bg-lux-cream text-lux-gold">
+                  <Bot className="h-3.5 w-3.5" aria-hidden />
                 </div>
-                <div className="rounded-xl bg-stone-100 px-4 py-2 text-sm text-stone-400">
+                <div className="rounded-lg border border-lux-border bg-lux-cream/60 px-4 py-2 text-sm text-lux-muted">
                   {t("typing")}
                 </div>
               </div>
             )}
           </div>
 
-          {/* Input */}
           <form
             onSubmit={(e) => {
               e.preventDefault();
               handleSend();
             }}
-            className="flex items-center gap-2 border-t border-stone-100 px-3 py-2.5"
+            className="flex items-center gap-2 border-t border-lux-border bg-lux-surface px-3 py-2.5"
           >
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={t("chatbotPlaceholder")}
-              className="flex-1 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm outline-none placeholder:text-stone-400 focus:border-primary focus:ring-1 focus:ring-primary"
+              className="flex-1 rounded-md border border-lux-border bg-lux-ivory px-3 py-2 text-sm text-lux-ink outline-none placeholder:text-lux-muted focus:border-lux-gold focus:ring-1 focus:ring-lux-gold/30"
             />
             <button
               type="submit"
               disabled={loading || !input.trim()}
-              className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-white disabled:opacity-40 hover:bg-primary-dark transition-colors"
+              className="flex h-9 w-9 items-center justify-center rounded-md bg-lux-espresso text-lux-cream transition-colors hover:bg-lux-walnut disabled:opacity-40"
             >
-              <Send className="h-4 w-4" />
+              <Send className="h-4 w-4" aria-hidden />
             </button>
           </form>
         </div>

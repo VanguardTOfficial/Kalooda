@@ -6,8 +6,10 @@ import { useLanguage } from "@/contexts/language-context";
 import { useAuth } from "@/contexts/auth-context";
 import { Header } from "@/components/header";
 import { CartDrawer } from "@/components/cart-drawer";
+import { SiteFooter } from "@/components/site-footer";
 import { CheckCircle, ArrowLeft, Loader2, ClipboardList } from "lucide-react";
 import Link from "next/link";
+import { btnPrimaryClass, cardSurfaceClass, inputClass, labelClass } from "@/lib/ui-classes";
 
 export default function CheckoutPage() {
   const { items, totalPrice, clearCart, clearRemoteCart, cartReady } = useCart();
@@ -87,99 +89,101 @@ export default function CheckoutPage() {
 
   if (orderId) {
     return (
-      <>
+      <div className="flex min-h-full flex-col">
         <Header onCartClick={() => setCartOpen(true)} />
         <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
-        <main className="mx-auto flex max-w-lg flex-col items-center px-4 py-24 text-center">
-          <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100">
-            <CheckCircle className="h-10 w-10 text-emerald-600" />
+        <main className="mx-auto flex w-full max-w-lg flex-1 flex-col items-center px-4 py-20 text-center sm:py-24">
+          <div className="mb-8 flex h-24 w-24 items-center justify-center rounded-full border border-emerald-200/80 bg-emerald-50 shadow-inner">
+            <CheckCircle className="h-12 w-12 text-emerald-700" aria-hidden />
           </div>
-          <h1 className="text-2xl font-bold text-stone-900">
+          <h1 className="font-serif text-3xl font-semibold text-lux-espresso">
             {t("orderPlaced")}
           </h1>
-          <p className="mt-2 text-stone-500">
+          <p className="mt-3 text-lux-muted">
             {t("yourOrder")}{" "}
-            <span className="font-semibold text-primary">{orderId}</span>{" "}
+            <span className="font-semibold text-lux-gold">{orderId}</span>{" "}
             {t("orderConfirmation")}
           </p>
           <Link
             href="/account/orders"
-            className="mt-8 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-white shadow-sm hover:bg-primary-dark transition-colors"
+            className={`${btnPrimaryClass} mt-10 gap-2`}
           >
-            <ClipboardList className="h-4 w-4" />
+            <ClipboardList className="h-4 w-4" aria-hidden />
             {t("myOrders")}
           </Link>
         </main>
-      </>
+        <SiteFooter />
+      </div>
     );
   }
 
   return (
-    <>
+    <div className="flex min-h-full flex-col">
       <Header onCartClick={() => setCartOpen(true)} />
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
 
-      <main className="mx-auto max-w-lg px-4 py-10">
+      <main className="mx-auto w-full max-w-lg flex-1 px-4 py-10 sm:py-14">
         <Link
           href="/"
-          className="mb-6 inline-flex items-center gap-1 text-sm text-stone-500 hover:text-primary transition-colors"
+          className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-lux-muted transition-colors hover:text-lux-gold"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className="h-4 w-4" aria-hidden />
           {t("backToShop")}
         </Link>
 
-        <h1 className="text-2xl font-bold text-stone-900">{t("checkout")}</h1>
+        <h1 className="font-serif text-3xl font-semibold text-lux-espresso">
+          {t("checkout")}
+        </h1>
+        <div className="divider-gold my-6 max-w-xs" />
 
         {items.length === 0 ? (
-          <p className="mt-8 text-center text-stone-400">
+          <p className="mt-6 text-center text-lux-muted">
             {t("cartEmptyCheckout")}{" "}
-            <Link href="/" className="text-primary underline">
+            <Link href="/" className="font-semibold text-lux-gold underline-offset-2 hover:underline">
               {t("browseProducts")}
             </Link>
           </p>
         ) : (
           <>
-            <div className="mt-6 rounded-xl border border-stone-200 bg-white p-4">
-              <h2 className="mb-3 text-sm font-semibold text-stone-700">
-                {t("orderSummary")}
-              </h2>
-              <ul className="divide-y divide-stone-100">
+            <div className={`${cardSurfaceClass} p-5`}>
+              <h2 className="mb-4 font-serif text-lg text-lux-espresso">{t("orderSummary")}</h2>
+              <ul className="divide-y divide-lux-border">
                 {items.map((item) => (
                   <li
                     key={item.product.id}
-                    className="flex items-center justify-between py-2 text-sm"
+                    className="flex items-center justify-between gap-3 py-3 text-sm first:pt-0"
                   >
-                    <span className="text-stone-700">
+                    <span className="text-lux-ink-muted">
                       {item.product.name} &times; {item.quantity}
                     </span>
-                    <span className="font-semibold text-stone-900">
+                    <span className="font-semibold text-lux-espresso">
                       ₪{(item.product.price * item.quantity).toFixed(2)}
                     </span>
                   </li>
                 ))}
               </ul>
-              <div className="mt-3 flex items-center justify-between border-t border-stone-200 pt-3">
-                <span className="font-semibold text-stone-700">{t("total")}</span>
-                <span className="text-lg font-bold text-primary">
+              <div className="mt-4 flex items-center justify-between border-t border-lux-border pt-4">
+                <span className="font-semibold text-lux-ink-muted">{t("total")}</span>
+                <span className="font-serif text-xl font-semibold text-lux-gold">
                   ₪{totalPrice.toFixed(2)}
                 </span>
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <form onSubmit={handleSubmit} className="mt-8 space-y-5">
               {profileComplete ? (
-                <div className="rounded-xl border border-stone-200 bg-stone-50 p-4 text-sm text-stone-700">
-                  <p className="font-medium text-stone-900">
+                <div className={`${cardSurfaceClass} p-5 text-sm text-lux-ink-muted`}>
+                  <p className="font-serif text-base font-semibold text-lux-espresso">
                     {t("deliveryContact")}
                   </p>
-                  <p className="mt-2">
+                  <p className="mt-2 leading-relaxed">
                     {profile!.full_name}
                     <br />
                     {profile!.phone}
                   </p>
                   <Link
                     href="/account"
-                    className="mt-3 inline-block text-primary font-medium hover:underline"
+                    className="mt-4 inline-block text-sm font-semibold text-lux-gold hover:underline"
                   >
                     {t("editInAccount")}
                   </Link>
@@ -187,44 +191,47 @@ export default function CheckoutPage() {
               ) : (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-stone-700">
+                    <label className={labelClass} htmlFor="checkout-name">
                       {t("name")}
                     </label>
                     <input
+                      id="checkout-name"
                       required
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      className={inputClass}
                       placeholder={t("namePlaceholder")}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-stone-700">
+                    <label className={labelClass} htmlFor="checkout-phone">
                       {t("phone")}
                     </label>
                     <input
+                      id="checkout-phone"
                       required
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      className={inputClass}
                       placeholder={t("phonePlaceholder")}
                     />
                   </div>
-                  <p className="text-xs text-stone-500">{t("checkoutProfileHint")}</p>
+                  <p className="text-xs text-lux-muted">{t("checkoutProfileHint")}</p>
                 </>
               )}
               <button
                 type="submit"
                 disabled={submitting || !cartReady}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-white shadow-sm hover:bg-primary-dark transition-colors disabled:opacity-50"
+                className={`${btnPrimaryClass} w-full py-3.5 disabled:opacity-50`}
               >
-                {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                {submitting && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
                 {submitting ? t("placingOrder") : t("placeOrder")}
               </button>
             </form>
           </>
         )}
       </main>
-    </>
+      <SiteFooter />
+    </div>
   );
 }

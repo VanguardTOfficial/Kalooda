@@ -2,15 +2,49 @@ export type Locale = "en" | "ar";
 
 export const translations = {
   en: {
-    // Header
+    // Header & nav
     admin: "Admin",
     cart: "Cart",
+    navMenu: "Menu",
+    navOrderOnline: "Order online",
+    navContact: "Contact",
+    navOpenMenu: "Open menu",
+    navCloseMenu: "Close menu",
 
     // Home hero
     heroTitle1: "Fresh Sweets,",
     heroTitle2: "Delivered Fast",
     heroSubtitle:
       "Hand-crafted chocolates, gummies, pastries & more. Order online and get same-day delivery.",
+    heroBadge: "SweetDrop · Craft confections",
+    heroCtaShop: "Explore the menu",
+    heroCtaOrder: "Order for delivery",
+    promoBanner:
+      "Same-day delivery on many orders — place yours early for the best selection.",
+    sectionFeaturedEyebrow: "Curated for you",
+    sectionFeaturedTitle: "Selections from our kitchen",
+    sectionFeaturedSubtitle:
+      "Guest favorites and seasonal highlights, made in small batches.",
+    sectionStoryKicker: "Our table",
+    sectionStoryTitle: "Hospitality you can taste",
+    sectionStoryBody:
+      "We blend time-honored techniques with carefully sourced ingredients so every box feels like a gift — whether it is a quiet treat at home or something shared with people you love. From the first melt of chocolate to the last crumb of pastry, we aim for warmth, balance, and a little everyday luxury.",
+    sectionStoryQuote:
+      "Quality is never rushed — it is layered, tasted, and refined.",
+    sectionOrderCtaTitle: "Ready when you are",
+    sectionOrderCtaBody:
+      "Review your cart, confirm your details, and we will prepare your order with the same care we would serve at our own table.",
+    viewFullMenu: "View full menu",
+    trustCraft: "Small-batch, hand-finished confections",
+    trustDeliveryLine: "Same-day delivery where available",
+    footerTagline:
+      "Artisan confections and pastries, packed with care and brought to your door.",
+    footerRights: "© 2026 SweetDrop. All rights reserved.",
+    footerCrafted: "Made fresh. Delivered with intention.",
+    footerExplore: "Explore",
+    footerVisit: "Visit & account",
+    footerDeliveryArea: "Daily delivery in our local service area",
+    footerContact: "Guest services",
     loadingProducts: "Loading products...",
     searchPlaceholder: "Search sweets...",
     all: "All",
@@ -210,15 +244,49 @@ export const translations = {
     switchLanguage: "العربية",
   },
   ar: {
-    // Header
+    // Header & nav
     admin: "لوحة التحكم",
     cart: "السلة",
+    navMenu: "القائمة",
+    navOrderOnline: "اطلب أونلاين",
+    navContact: "تواصل",
+    navOpenMenu: "فتح القائمة",
+    navCloseMenu: "إغلاق القائمة",
 
     // Home hero
     heroTitle1: "حلويات طازجة،",
     heroTitle2: "توصيل سريع",
     heroSubtitle:
       "شوكولاتة يدوية الصنع، حلوى، معجنات والمزيد. اطلب أونلاين واحصل على توصيل في نفس اليوم.",
+    heroBadge: "سويت دروب · حلويات حرفية",
+    heroCtaShop: "استكشف القائمة",
+    heroCtaOrder: "اطلب للتوصيل",
+    promoBanner:
+      "توصيل في نفس اليوم لعدة طلبات — اطلب مبكراً لأفضل توفر.",
+    sectionFeaturedEyebrow: "مختارة لك",
+    sectionFeaturedTitle: "مختارات من مطبخنا",
+    sectionFeaturedSubtitle:
+      "مفضلات الضيوف والموسمية، بكميات محدودة.",
+    sectionStoryKicker: "طاولتنا",
+    sectionStoryTitle: "ضيافة تُذاق",
+    sectionStoryBody:
+      "نمزج تقاليد راسخة مع مكونات مختارة بعناية ليكون كل صندوق كهدية — سواء كان لحظة هدوء في المنزل أو لقاء مع أحبائك. من أول ذوبان للشوكولاتة إلى آخر فتات المعجنات، نسعى للدفء والتوازن ولمسة من الفخامة اليومية.",
+    sectionStoryQuote:
+      "الجودة لا تُستعجل — تُبنى طبقةً طبقة وتُذاق وتُصقل.",
+    sectionOrderCtaTitle: "نحن جاهزون عندما تكون أنت",
+    sectionOrderCtaBody:
+      "راجع سلتك، أكّد بياناتك، وسنحضّر طلبك بنفس العناية التي نقدّمها على طاولتنا.",
+    viewFullMenu: "عرض القائمة كاملة",
+    trustCraft: "حلويات يدوية بطُبَعات صغيرة",
+    trustDeliveryLine: "توصيل في نفس اليوم حيث يتوفر",
+    footerTagline:
+      "حلويات ومعجنات حرفية، معبأة بعناية وتوصّل إلى بابك.",
+    footerRights: "© 2026 سويت دروب. جميع الحقوق محفوظة.",
+    footerCrafted: "طازجة الصنع. توصيل بعناية.",
+    footerExplore: "استكشف",
+    footerVisit: "الزيارة والحساب",
+    footerDeliveryArea: "توصيل يومي ضمن منطقة خدمتنا",
+    footerContact: "خدمة الضيوف",
     loadingProducts: "جارٍ تحميل المنتجات...",
     searchPlaceholder: "ابحث عن الحلويات...",
     all: "الكل",
