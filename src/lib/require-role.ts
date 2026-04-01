@@ -61,6 +61,52 @@ export async function requireRole(
   return { authorized: true, userId: user.id };
 }
 
+/** Any signed-in user with a profile row (customer, admin, or super_admin). */
+export async function requireSession(
+  request: NextRequest
+): Promise<AuthResult> {
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll() {},
+      },
+    }
+  );
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    return NextResponse.json(
+      { error: "Authentication required" },
+      { status: 401 }
+    );
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile) {
+    console.error("MISSING_PROFILE_API", {
+      userId: user.id,
+      path: request.nextUrl.pathname,
+    });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  return { authorized: true, userId: user.id };
+}
+
 export function isAuthorized(
   result: AuthResult
 ): result is { authorized: true; userId: string } {

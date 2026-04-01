@@ -26,6 +26,9 @@ export const translations = {
     each: "each",
     total: "Total",
     proceedToCheckout: "Proceed to Checkout",
+    signInToCheckout: "Sign in to checkout",
+    orderRequiresSignIn:
+      "Your session expired. Please sign in again to place your order.",
 
     // Chatbot
     chatbotGreeting:
@@ -210,6 +213,9 @@ export const translations = {
     each: "للقطعة",
     total: "المجموع",
     proceedToCheckout: "إتمام الشراء",
+    signInToCheckout: "سجّل الدخول لإتمام الشراء",
+    orderRequiresSignIn:
+      "انتهت جلستك. يرجى تسجيل الدخول مرة أخرى لإتمام الطلب.",
 
     // Chatbot
     chatbotGreeting:

@@ -39,6 +39,15 @@ export default function CheckoutPage() {
         }),
       });
       const data = await res.json();
+      if (res.status === 401) {
+        alert(t("orderRequiresSignIn"));
+        window.location.href = `/sign-in?next=${encodeURIComponent("/checkout")}`;
+        return;
+      }
+      if (!res.ok) {
+        alert(data?.error ?? t("orderFailed"));
+        return;
+      }
       setOrderId(data.display_id ?? data.id ?? "confirmed");
       clearCart();
     } catch {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
-import { requireRole, isAuthorized } from "@/lib/require-role";
+import { requireRole, requireSession, isAuthorized } from "@/lib/require-role";
 
 export async function GET(req: NextRequest) {
   const authResult = await requireRole(req, ["admin", "super_admin"]);
@@ -24,6 +24,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const authResult = await requireSession(req);
+  if (!isAuthorized(authResult)) return authResult;
+
   try {
     const body = await req.json();
 

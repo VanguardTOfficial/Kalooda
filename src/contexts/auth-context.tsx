@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase-client";
+import { getSafeNextPath } from "@/lib/auth-redirect";
 import type { User } from "@supabase/supabase-js";
 
 export interface Profile {
@@ -30,7 +31,10 @@ interface AuthContextValue {
     fullName: string,
     phone: string
   ) => Promise<string | null>;
-  signInWithOAuth: (provider: "google" | "apple") => Promise<void>;
+  signInWithOAuth: (
+    provider: "google" | "apple",
+    options?: { next?: string | null }
+  ) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -80,12 +84,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, [fetchProfile]);
 
-  function redirectByRole(role: string | null | undefined) {
-    if (role === "admin" || role === "super_admin") {
-      router.push("/admin");
-    } else {
-      router.push("/");
+  function postAuthPath(role: string | null | undefined): string {
+    if (typeof window !== "undefined") {
+      const next = getSafeNextPath(
+        new URLSearchParams(window.location.search).get("next")
+      );
+      if (next) return next;
     }
+    if (role === "admin" || role === "super_admin") return "/admin";
+    return "/";
   }
 
   const signIn = async (
@@ -103,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = await supabase.auth.getUser();
     if (signedInUser) {
       const p = await fetchProfile(signedInUser.id);
-      redirectByRole(p?.role);
+      router.push(postAuthPath(p?.role));
     }
     return null;
   };
@@ -127,17 +134,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { user: newUser },
     } = await supabase.auth.getUser();
     if (newUser) {
-      await fetchProfile(newUser.id);
-      router.push("/");
+      const p = await fetchProfile(newUser.id);
+      router.push(postAuthPath(p?.role));
     }
     return null;
   };
 
-  const signInWithOAuth = async (provider: "google" | "apple") => {
+  const signInWithOAuth = async (
+    provider: "google" | "apple",
+    options?: { next?: string | null }
+  ) => {
+    const next = getSafeNextPath(options?.next ?? undefined);
+    const qs = next ? `?next=${encodeURIComponent(next)}` : "";
     await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback${qs}`,
       },
     });
   };

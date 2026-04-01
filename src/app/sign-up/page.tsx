@@ -1,15 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Candy, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useLanguage } from "@/contexts/language-context";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { getSafeNextPath } from "@/lib/auth-redirect";
 
 export default function SignUpPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      }
+    >
+      <SignUpContent />
+    </Suspense>
+  );
+}
+
+function SignUpContent() {
   const { signUp, signInWithOAuth, loading: authLoading } = useAuth();
   const { t } = useLanguage();
+  const searchParams = useSearchParams();
+  const nextSafe = getSafeNextPath(searchParams.get("next"));
+  const signInHref = nextSafe
+    ? `/sign-in?next=${encodeURIComponent(nextSafe)}`
+    : "/sign-in";
 
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
@@ -56,7 +77,9 @@ export default function SignUpPage() {
         <div className="flex flex-col gap-3 mb-5">
           <button
             type="button"
-            onClick={() => signInWithOAuth("google")}
+            onClick={() =>
+              signInWithOAuth("google", { next: nextSafe })
+            }
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-stone-200 bg-white py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24">
@@ -81,7 +104,9 @@ export default function SignUpPage() {
           </button>
           <button
             type="button"
-            onClick={() => signInWithOAuth("apple")}
+            onClick={() =>
+              signInWithOAuth("apple", { next: nextSafe })
+            }
             className="flex w-full items-center justify-center gap-2 rounded-xl border border-stone-200 bg-stone-900 py-2.5 text-sm font-medium text-white hover:bg-stone-800 transition-colors"
           >
             <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
@@ -179,7 +204,7 @@ export default function SignUpPage() {
         <p className="mt-5 text-center text-sm text-stone-500">
           {t("alreadyHaveAccount")}{" "}
           <Link
-            href="/sign-in"
+            href={signInHref}
             className="font-semibold text-primary hover:text-primary-dark"
           >
             {t("signIn")}
