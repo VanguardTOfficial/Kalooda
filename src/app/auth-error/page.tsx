@@ -18,10 +18,14 @@ export default function AuthErrorPage() {
       <div className="relative flex flex-1 flex-col items-center justify-center px-4 py-12 pattern-noise">
         <div className="relative mb-10 flex w-full max-w-md flex-wrap items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-3 group">
-            <span className="flex h-11 w-11 items-center justify-center rounded-md border border-lux-gold/35 bg-lux-espresso text-lux-gold-light">
-              <Candy className="h-6 w-6" aria-hidden />
-            </span>
-            <span className="font-serif text-2xl font-semibold text-lux-espresso">SweetDrop</span>
+            <Image
+              src="/brand/logo-transparent.png"
+              alt="Kalooda"
+              width={160}
+              height={82}
+              className="h-10 w-auto object-contain transition-opacity group-hover:opacity-90"
+              priority
+            />
           </Link>
           <LanguageSwitcher />
         </div>

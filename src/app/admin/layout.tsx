@@ -35,10 +35,14 @@ export default function AdminLayout({
       <header className="sticky top-0 z-40 border-b border-lux-border bg-lux-surface-elevated/95 shadow-sm backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
           <Link href="/" className="flex items-center gap-3 group">
-            <span className="flex h-9 w-9 items-center justify-center rounded-md border border-lux-gold/35 bg-lux-espresso text-lux-gold-light transition-transform group-hover:scale-[1.02]">
-              <Candy className="h-5 w-5" aria-hidden />
-            </span>
-            <span className="font-serif text-lg font-semibold text-lux-espresso">SweetDrop</span>
+            <Image
+              src="/brand/logo-transparent.png"
+              alt="Kalooda"
+              width={120}
+              height={62}
+              className="h-8 w-auto object-contain transition-opacity group-hover:opacity-90"
+            />
+            <span className="font-serif text-lg font-semibold text-lux-espresso">Kalooda</span>
             <span className="hidden rounded-full border border-lux-border bg-lux-cream/50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-lux-muted sm:inline">
               {t("admin")}
             </span>

@@ -55,16 +55,18 @@ export function Header({ onCartClick }: HeaderProps) {
           <Link
             href="/"
             onClick={closeMobile}
-            className="flex min-w-0 max-w-[48%] shrink items-center gap-3 group sm:max-w-none"
+            className="flex min-w-0 max-w-[55%] shrink items-center gap-2 group sm:max-w-none sm:gap-3"
           >
-            <span className="flex h-11 w-11 items-center justify-center rounded-md border border-lux-gold/35 bg-gradient-to-br from-lux-espresso to-lux-walnut text-lux-gold-light shadow-inner transition-transform group-hover:scale-[1.02]">
-              <Candy className="h-6 w-6" aria-hidden />
-            </span>
-            <span className="min-w-0">
-              <span className="block truncate font-serif text-xl font-semibold tracking-tight text-lux-espresso sm:text-2xl">
-                SweetDrop
-              </span>
-              <span className="hidden text-[11px] font-medium uppercase tracking-[0.2em] text-lux-muted sm:block">
+            <Image
+              src="/brand/logo-transparent.png"
+              alt="Kalooda"
+              width={140}
+              height={72}
+              className="h-9 w-auto object-contain transition-opacity group-hover:opacity-90 sm:h-10"
+              priority
+            />
+            <span className="hidden min-w-0 sm:block">
+              <span className="block truncate text-[11px] font-medium uppercase tracking-[0.2em] text-lux-muted">
                 {t("heroBadge")}
               </span>
             </span>
@@ -170,7 +172,7 @@ export function Header({ onCartClick }: HeaderProps) {
           >
             <div className="flex items-center justify-between border-b border-lux-border px-4 py-4">
               <span className="font-serif text-lg font-semibold text-lux-espresso">
-                SweetDrop
+                Kalooda
               </span>
               <button
                 type="button"

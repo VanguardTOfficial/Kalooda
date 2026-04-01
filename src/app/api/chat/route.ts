@@ -25,7 +25,7 @@ async function getProducts(): Promise<ProductRow[]> {
 }
 
 function buildSystemPrompt(products: ProductRow[]): string {
-  return `You are SweetBot, the friendly AI assistant for SweetDrop, a premium sweets and candy shop.
+  return `You are the friendly AI assistant for Kalooda, a shop offering cheesecakes and confections.
 
 Your responsibilities:
 1. Help customers find products and answer questions about ingredients and allergens.

@@ -23,12 +23,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const cormorant = Cormorant_Garamond({
-  variable: "--font-cormorant",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
 const notoArabic = Noto_Sans_Arabic({
   variable: "--font-noto-arabic",
   subsets: ["arabic"],
@@ -42,9 +36,9 @@ const luxSerif = Cormorant_Garamond({
 });
 
 export const metadata: Metadata = {
-  title: "SweetDrop — Artisan Sweets & Confections",
+  title: "Kalooda — Cheesecake And More",
   description:
-    "Hand-crafted chocolates, gummies, pastries, and more. Order online for thoughtful delivery and guest-worthy presentation.",
+    "Hand-crafted cheesecakes and more. Order online and get same-day delivery.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

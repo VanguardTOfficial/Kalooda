@@ -16,7 +16,7 @@ export const translations = {
     heroTitle2: "Delivered Fast",
     heroSubtitle:
       "Hand-crafted chocolates, gummies, pastries & more. Order online and get same-day delivery.",
-    heroBadge: "SweetDrop · Craft confections",
+    heroBadge: "Kalooda · Cheesecake & more",
     heroCtaShop: "Explore the menu",
     heroCtaOrder: "Order for delivery",
     promoBanner:
@@ -39,7 +39,7 @@ export const translations = {
     trustDeliveryLine: "Same-day delivery where available",
     footerTagline:
       "Artisan confections and pastries, packed with care and brought to your door.",
-    footerRights: "© 2026 SweetDrop. All rights reserved.",
+    footerRights: "© 2026 Kalooda. All rights reserved.",
     footerCrafted: "Made fresh. Delivered with intention.",
     footerExplore: "Explore",
     footerVisit: "Visit & account",
@@ -258,7 +258,7 @@ export const translations = {
     heroTitle2: "توصيل سريع",
     heroSubtitle:
       "شوكولاتة يدوية الصنع، حلوى، معجنات والمزيد. اطلب أونلاين واحصل على توصيل في نفس اليوم.",
-    heroBadge: "سويت دروب · حلويات حرفية",
+    heroBadge: "كلودا · تشيز كيك والمزيد",
     heroCtaShop: "استكشف القائمة",
     heroCtaOrder: "اطلب للتوصيل",
     promoBanner:
@@ -281,7 +281,7 @@ export const translations = {
     trustDeliveryLine: "توصيل في نفس اليوم حيث يتوفر",
     footerTagline:
       "حلويات ومعجنات حرفية، معبأة بعناية وتوصّل إلى بابك.",
-    footerRights: "© 2026 سويت دروب. جميع الحقوق محفوظة.",
+    footerRights: "© 2026 كلودا. جميع الحقوق محفوظة.",
     footerCrafted: "طازجة الصنع. توصيل بعناية.",
     footerExplore: "استكشف",
     footerVisit: "الزيارة والحساب",

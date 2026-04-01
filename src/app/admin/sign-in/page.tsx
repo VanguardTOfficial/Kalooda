@@ -64,12 +64,16 @@ function AdminSignInContent() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-lux-bg px-4 py-12 pattern-noise">
       <div className="mb-10 flex items-center gap-4">
         <Link href="/" className="flex items-center gap-3 group">
-          <span className="flex h-11 w-11 items-center justify-center rounded-md border border-lux-gold/35 bg-lux-espresso text-lux-gold-light">
-            <Candy className="h-6 w-6" aria-hidden />
-          </span>
-          <span className="font-serif text-2xl font-semibold text-lux-espresso">SweetDrop</span>
+          <Image
+            src="/brand/logo-transparent.png"
+            alt="Kalooda"
+            width={160}
+            height={82}
+            className="h-10 w-auto object-contain transition-opacity group-hover:opacity-90"
+            priority
+          />
         </Link>
-        <LanguageSwitcher className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-200 transition-colors" />
+        <LanguageSwitcher />
       </div>
 
       <div className="w-full max-w-sm rounded-lg border border-lux-border bg-lux-surface-elevated p-8 shadow-[0_24px_60px_-24px_rgba(26,21,18,0.35)]">

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Candy, Mail, MapPin } from "lucide-react";
+import Image from "next/image";
+import { Mail, MapPin } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
 
 export function SiteFooter({ variant = "full" }: { variant?: "full" | "minimal" }) {
@@ -28,13 +29,14 @@ export function SiteFooter({ variant = "full" }: { variant?: "full" | "minimal" 
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
         <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-2">
-            <Link href="/" className="inline-flex items-center gap-2.5 group">
-              <span className="flex h-10 w-10 items-center justify-center rounded-md border border-lux-gold/30 bg-lux-espresso/80 text-lux-gold-light transition-colors group-hover:border-lux-gold/50">
-                <Candy className="h-5 w-5" aria-hidden />
-              </span>
-              <span className="font-serif text-2xl font-semibold tracking-tight text-lux-cream">
-                SweetDrop
-              </span>
+            <Link href="/" className="inline-flex items-center gap-3 group">
+              <Image
+                src="/brand/logo-transparent.png"
+                alt="Kalooda"
+                width={140}
+                height={72}
+                className="h-10 w-auto object-contain opacity-95 transition-opacity group-hover:opacity-100"
+              />
             </Link>
             <p className="mt-4 max-w-md text-sm leading-relaxed text-lux-cream/75">
               {t("footerTagline")}
