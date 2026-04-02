@@ -13,6 +13,15 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   // Next.js blocks /_next dev assets from "unknown" origins; LAN IPs must be allowlisted.
   allowedDevOrigins: privateLanDevOrigins,
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "nnciyjfqoggfavfettbm.supabase.co",
+        pathname: "/storage/v1/object/public/**",
+      },
+    ],
+  },
 };
 
 export default nextConfig;
