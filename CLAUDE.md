@@ -17,6 +17,15 @@ Whenever the user says "push", "push changes", "push to GitHub", or anything sim
 3. Commit the changes to that branch
 4. Push the branch to GitHub
 5. Open a PR using the `gh` CLI (`gh pr create ...`)
+6. **Sync GitHub issues with the pushed work** (use `gh`; scope to this repo):
+   - List open issues (`gh issue list --state open`, increase `--limit` if needed). Also consider issues referenced in commit messages or the PR body.
+   - For each issue that **clearly relates** to what changed in this push: compare the issue to the actual diff/commits (and PR).
+     - **Nothing in the push addresses it** → leave the issue unchanged.
+     - **Partially addressed** → add a comment (`gh issue comment`) stating what is done, what remains, and link the PR (and key paths or commits if helpful). Do not close.
+     - **Fully addressed** → comment with a short summary and PR link, then close (`gh issue close <n> --reason completed`) or ensure the PR body uses a closing keyword (`Fixes #n`) if you amend the PR instead.
+   - If the push implements **substantive work** that **no open issue** describes, create an issue (`gh issue create`) whose title and body match what the code actually does, and link the PR in the body. Close it when the work is done (e.g. after merge) or leave it open as the canonical task for that PR—pick whichever keeps the tracker honest.
+
+   Goal: the issue tracker reflects reality after every push—no silent fixes, no stale “open” for completed work, and no undocumented shipped changes.
 
 # MCP Servers
 
