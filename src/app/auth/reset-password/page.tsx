@@ -35,9 +35,11 @@ export default function ResetPasswordPage() {
     );
 
     // Also check if a session already exists (page reload after token consumed)
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setReady(true);
-    });
+    const checkSession = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData.session) setReady(true);
+    };
+    void checkSession();
 
     // If no recovery event after 3 s, the link is invalid/expired
     const timeout = setTimeout(() => {
