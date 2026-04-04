@@ -1,18 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Loader2 } from "lucide-react";
 import { getSupabaseCustomerBrowser } from "@/lib/supabase-client-customer";
 import { useLanguage } from "@/contexts/language-context";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function ForgotPasswordPage() {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Pre-fill email from logged-in user
+  useEffect(() => {
+    if (user?.email) setEmail(user.email);
+  }, [user]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -20,6 +27,13 @@ export default function ForgotPasswordPage() {
     setSubmitting(true);
 
     const supabase = getSupabaseCustomerBrowser();
+
+    // If user is already logged in, use updateUser directly — no email needed
+    if (user) {
+      // Sign them out first so the reset link works cleanly
+      await supabase.auth.signOut();
+    }
+
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(
       email,
       { redirectTo: `${window.location.origin}/auth/reset-password` }
@@ -73,19 +87,28 @@ export default function ForgotPasswordPage() {
               </p>
 
               <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-ink-soft">
-                    {t("email")}
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder={t("emailPlaceholder")}
-                    className="input-premium"
-                  />
-                </div>
+                {/* Hide email field if user is already logged in */}
+                {!user && (
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                      {t("email")}
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder={t("emailPlaceholder")}
+                      className="input-premium"
+                    />
+                  </div>
+                )}
+
+                {user && (
+                  <p className="text-sm text-ink-soft">
+                    {t("email")}: <span className="font-medium text-ink">{user.email}</span>
+                  </p>
+                )}
 
                 {error && (
                   <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -109,14 +132,16 @@ export default function ForgotPasswordPage() {
                 </button>
               </form>
 
-              <p className="mt-6 text-center text-sm text-ink-soft">
-                <Link
-                  href="/sign-in"
-                  className="font-semibold text-primary-dark hover:underline"
-                >
-                  {t("signIn")}
-                </Link>
-              </p>
+              {!user && (
+                <p className="mt-6 text-center text-sm text-ink-soft">
+                  <Link
+                    href="/sign-in"
+                    className="font-semibold text-primary-dark hover:underline"
+                  >
+                    {t("signIn")}
+                  </Link>
+                </p>
+              )}
             </>
           )}
         </div>
