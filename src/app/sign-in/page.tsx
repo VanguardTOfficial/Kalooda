@@ -7,7 +7,6 @@ import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useLanguage } from "@/contexts/language-context";
-import { LanguageSwitcher } from "@/components/language-switcher";
 import { getSafeNextPath } from "@/lib/auth-redirect";
 
 export default function SignInPage() {
@@ -100,7 +99,7 @@ function SignInContent() {
       </div>
 
       <div className="flex flex-col items-center justify-center px-4 py-10 sm:px-8">
-        <div className="mb-8 flex w-full max-w-sm items-center justify-between lg:hidden">
+        <div className="mb-8 flex w-full max-w-sm items-center justify-center lg:hidden">
           <Link href="/">
             <Image
               src="/brand/logo-transparent.png"
@@ -111,14 +110,9 @@ function SignInContent() {
               priority
             />
           </Link>
-          <LanguageSwitcher className="flex items-center gap-1.5 rounded-lg border border-[#1F443C]/12 bg-white/80 px-3 py-2 text-sm font-medium text-ink-soft hover:border-[#D3A94C]/35" />
         </div>
 
         <div className="surface-panel w-full max-w-sm rounded-2xl border border-[#1F443C]/10 p-7 shadow-[var(--shadow-elevated)] sm:p-8">
-          <div className="mb-6 hidden items-center justify-end lg:flex">
-            <LanguageSwitcher className="flex items-center gap-1.5 rounded-lg border border-[#1F443C]/12 bg-[#E0EBE6]/60 px-3 py-2 text-sm font-medium text-ink-soft hover:border-[#D3A94C]/35" />
-          </div>
-
           <h1 className="font-display text-2xl font-semibold text-ink">
             {t("welcomeBack")}
           </h1>
