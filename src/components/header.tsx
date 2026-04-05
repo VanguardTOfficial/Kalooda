@@ -14,7 +14,6 @@ import {
 import { useCart } from "@/contexts/cart-context";
 import { useLanguage } from "@/contexts/language-context";
 import { useAuth } from "@/contexts/auth-context";
-import { LanguageSwitcher } from "./language-switcher";
 
 interface HeaderProps {
   onCartClick: () => void;
@@ -59,7 +58,6 @@ export function Header({ onCartClick }: HeaderProps) {
         </Link>
 
         <div className="hidden lg:flex flex-1 items-center justify-end gap-1 xl:gap-2">
-          <LanguageSwitcher />
           {!loading && user ? (
             <>
               <Link href="/account" className={navLinkClass}>
@@ -146,9 +144,6 @@ export function Header({ onCartClick }: HeaderProps) {
               </button>
             </div>
             <div className="flex flex-col gap-1 p-4">
-              <div className="pb-2">
-                <LanguageSwitcher className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#D3A94C]/20 bg-white/[0.04] px-4 py-3 text-sm font-medium text-[#E5EDE8]" />
-              </div>
               {!loading && user ? (
                 <>
                   <Link

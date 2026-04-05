@@ -3,4 +3,5 @@ export interface Profile {
   role: "customer" | "admin" | "super_admin";
   full_name: string | null;
   phone: string | null;
+  preferred_language: "en" | "ar" | null;
 }

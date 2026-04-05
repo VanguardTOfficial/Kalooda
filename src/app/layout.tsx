@@ -1,12 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Cormorant_Garamond } from "next/font/google";
 import { Noto_Sans_Arabic } from "next/font/google";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { CartProvider } from "@/contexts/cart-context";
 import { LanguageProvider } from "@/contexts/language-context";
 import { AuthProvider } from "@/contexts/auth-context";
 import { AdminAuthProvider } from "@/contexts/admin-auth-context";
 import { PWARegister } from "@/components/pwa-register";
+import { LocaleSync } from "@/components/locale-sync";
 import {
   LOCALE_COOKIE_NAME,
   parseLocaleCookie,
@@ -59,9 +60,13 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const cookieStore = await cookies();
-  const locale = parseLocaleCookie(
-    cookieStore.get(LOCALE_COOKIE_NAME)?.value
-  );
+  const cookieValue = cookieStore.get(LOCALE_COOKIE_NAME)?.value;
+  let locale = parseLocaleCookie(cookieValue);
+  if (!cookieValue) {
+    const headersList = await headers();
+    const acceptLang = headersList.get("accept-language") ?? "";
+    if (acceptLang.toLowerCase().includes("ar")) locale = "ar";
+  }
   const dir = locale === "ar" ? "rtl" : "ltr";
 
   return (
@@ -76,6 +81,7 @@ export default async function RootLayout({
           <AuthProvider>
             <AdminAuthProvider>
               <CartProvider>
+                <LocaleSync />
                 {children}
                 <PWARegister />
               </CartProvider>
