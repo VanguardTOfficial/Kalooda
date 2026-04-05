@@ -9,6 +9,8 @@ const PUBLIC_PREFIXES = [
   "/api/",
   "/auth/callback",
   "/auth/sign-out",
+  "/auth/forgot-password",
+  "/auth/reset-password",
 ];
 const CUSTOMER_AUTH_PAGES = ["/sign-in", "/sign-up"];
 
