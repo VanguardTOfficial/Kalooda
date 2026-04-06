@@ -12,6 +12,12 @@ import { useRouter } from "next/navigation";
 import { getSupabaseCustomerBrowser } from "@/lib/supabase-client-customer";
 import { GUEST_CART_KEY } from "@/lib/guest-cart-constants";
 import { getSafeNextPath } from "@/lib/auth-redirect";
+import {
+  classifySignInError,
+  classifySignUpError,
+  type CustomerSignInAuthError,
+  type CustomerSignUpAuthError,
+} from "@/lib/customer-auth-errors";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import type { Profile } from "@/types/profile";
 
@@ -22,13 +28,16 @@ interface AuthContextValue {
   profile: Profile | null;
   loading: boolean;
   refreshProfile: () => Promise<Profile | null>;
-  signIn: (email: string, password: string) => Promise<string | null>;
+  signIn: (
+    email: string,
+    password: string
+  ) => Promise<null | "adminPortal" | CustomerSignInAuthError>;
   signUp: (
     email: string,
     password: string,
     fullName: string,
     phone: string
-  ) => Promise<string | null>;
+  ) => Promise<null | "adminPortal" | CustomerSignUpAuthError>;
   signInWithOAuth: (
     provider: "google",
     options?: { next?: string | null }
@@ -184,30 +193,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (
     email: string,
     password: string
-  ): Promise<string | null> => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) return error.message;
+  ): Promise<null | "adminPortal" | CustomerSignInAuthError> => {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) return classifySignInError(error);
 
-    const {
-      data: { user: signedInUser },
-    } = await supabase.auth.getUser();
-    if (signedInUser) {
-      const p = await fetchProfile(signedInUser.id);
-      if (p?.role === "admin" || p?.role === "super_admin") {
-        await supabase.auth.signOut();
-        await fetch("/auth/sign-out", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ audience: "customer" }),
-        });
-        return "adminPortal";
+      const {
+        data: { user: signedInUser },
+      } = await supabase.auth.getUser();
+      if (signedInUser) {
+        const p = await fetchProfile(signedInUser.id);
+        if (p?.role === "admin" || p?.role === "super_admin") {
+          await supabase.auth.signOut();
+          await fetch("/auth/sign-out", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ audience: "customer" }),
+          });
+          return "adminPortal";
+        }
+        router.push(postCustomerAuthPath());
       }
-      router.push(postCustomerAuthPath());
+      return null;
+    } catch {
+      return "network";
     }
-    return null;
   };
 
   const signUp = async (
@@ -215,32 +228,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     password: string,
     fullName: string,
     phone: string
-  ): Promise<string | null> => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName, phone },
-      },
-    });
-    if (error) return error.message;
+  ): Promise<null | "adminPortal" | CustomerSignUpAuthError> => {
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { full_name: fullName, phone },
+        },
+      });
+      if (error) return classifySignUpError(error);
 
-    if (data.session && data.user) {
-      const p = await fetchProfile(data.user.id);
-      if (p?.role === "admin" || p?.role === "super_admin") {
-        await supabase.auth.signOut();
-        await fetch("/auth/sign-out", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ audience: "customer" }),
-        });
-        return "adminPortal";
+      if (data.session && data.user) {
+        const p = await fetchProfile(data.user.id);
+        if (p?.role === "admin" || p?.role === "super_admin") {
+          await supabase.auth.signOut();
+          await fetch("/auth/sign-out", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ audience: "customer" }),
+          });
+          return "adminPortal";
+        }
+        router.push(postCustomerAuthPath());
+      } else {
+        router.push("/sign-in?message=confirm-email");
       }
-      router.push(postCustomerAuthPath());
-    } else {
-      router.push("/sign-in?message=confirm-email");
+      return null;
+    } catch {
+      return "network";
     }
-    return null;
   };
 
   const signInWithOAuth = async (
