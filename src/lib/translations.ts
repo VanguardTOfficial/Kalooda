@@ -89,6 +89,8 @@ export const translations = {
     language: "Language",
     saveProfile: "Save profile",
     profileSavedToast: "Profile saved.",
+    profileValidationNamePhoneRequired:
+      "Please enter your full name and phone number to save your profile.",
     profileSaveFailedToast: "Could not save profile.",
     orderHistoryTitle: "Order history",
     orderHistoryEmpty: "You have no orders yet.",
@@ -364,6 +366,8 @@ export const translations = {
     language: "اللغة",
     saveProfile: "حفظ الملف الشخصي",
     profileSavedToast: "تم حفظ الملف الشخصي.",
+    profileValidationNamePhoneRequired:
+      "يرجى إدخال اسمك الكامل ورقم هاتفك لحفظ الملف الشخصي.",
     profileSaveFailedToast: "تعذر حفظ الملف الشخصي.",
     orderHistoryTitle: "سجل الطلبات",
     orderHistoryEmpty: "لا توجد طلبات بعد.",

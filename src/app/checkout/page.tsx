@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useCart } from "@/contexts/cart-context";
 import { useLanguage } from "@/contexts/language-context";
 import { useAuth } from "@/contexts/auth-context";
@@ -10,6 +10,12 @@ import Image from "next/image";
 import { CheckCircle, ArrowLeft, Loader2, ClipboardList } from "lucide-react";
 import Link from "next/link";
 import { useCartDrawerEvent } from "@/hooks/use-cart-drawer-event";
+import { InlineBanner } from "@/components/inline-banner";
+
+type CheckoutBanner =
+  | null
+  | { type: "error"; message: string }
+  | { type: "signIn" };
 
 export default function CheckoutPage() {
   const { items, totalPrice, clearCart, clearRemoteCart, cartReady } = useCart();
@@ -20,6 +26,9 @@ export default function CheckoutPage() {
   const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [checkoutBanner, setCheckoutBanner] = useState<CheckoutBanner>(null);
+  const checkoutNameInputRef = useRef<HTMLInputElement>(null);
+  const checkoutPhoneInputRef = useRef<HTMLInputElement>(null);
 
   useCartDrawerEvent(setCartOpen);
 
@@ -34,6 +43,24 @@ export default function CheckoutPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!items.length || !cartReady) return;
+    setCheckoutBanner(null);
+
+    if (!profileComplete) {
+      const trimmedName = name.trim();
+      const trimmedPhone = phone.trim();
+      if (!trimmedName || !trimmedPhone) {
+        setCheckoutBanner({
+          type: "error",
+          message: t("profileIncompleteCheckout"),
+        });
+        requestAnimationFrame(() => {
+          if (!trimmedName) checkoutNameInputRef.current?.focus();
+          else checkoutPhoneInputRef.current?.focus();
+        });
+        return;
+      }
+    }
+
     setSubmitting(true);
 
     const customerName = profileComplete
@@ -62,21 +89,19 @@ export default function CheckoutPage() {
       });
       const data = await res.json();
       if (res.status === 401) {
-        alert(t("orderRequiresSignIn"));
-        window.location.href = `/sign-in?next=${encodeURIComponent("/checkout")}`;
+        setCheckoutBanner({ type: "signIn" });
         return;
       }
       if (res.status === 400 && data?.code === "PROFILE_INCOMPLETE") {
-        alert(data?.error ?? t("profileIncompleteCheckout"));
+        setCheckoutBanner({ type: "error", message: t("profileIncompleteCheckout") });
         return;
       }
       if (res.status === 503 && data?.code === "SCHEMA_OUTDATED") {
-        alert(data?.error ?? t("orderSchemaOutdated"));
+        setCheckoutBanner({ type: "error", message: t("orderSchemaOutdated") });
         return;
       }
       if (!res.ok) {
-        const parts = [data?.error, data?.details].filter(Boolean);
-        alert(parts.length ? parts.join("\n\n") : t("orderFailed"));
+        setCheckoutBanner({ type: "error", message: t("orderFailed") });
         return;
       }
       await clearRemoteCart();
@@ -84,7 +109,7 @@ export default function CheckoutPage() {
       await refreshProfile();
       setOrderId(data.display_id ?? data.id ?? "confirmed");
     } catch {
-      alert(t("orderFailed"));
+      setCheckoutBanner({ type: "error", message: t("orderFailed") });
     } finally {
       setSubmitting(false);
     }
@@ -192,7 +217,26 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+            <form
+              noValidate
+              onSubmit={handleSubmit}
+              className="mt-8 space-y-5"
+            >
+              {checkoutBanner?.type === "signIn" ? (
+                <InlineBanner variant="error" className="text-start">
+                  <p>{t("orderRequiresSignIn")}</p>
+                  <Link
+                    href={`/sign-in?next=${encodeURIComponent("/checkout")}`}
+                    className="inline-block font-semibold underline underline-offset-2 hover:opacity-90"
+                  >
+                    {t("signIn")}
+                  </Link>
+                </InlineBanner>
+              ) : checkoutBanner?.type === "error" ? (
+                <InlineBanner variant="error" className="text-start">
+                  <p>{checkoutBanner.message}</p>
+                </InlineBanner>
+              ) : null}
               {profileComplete ? (
                 <div className="surface-panel rounded-xl border border-[#1F443C]/10 p-5 text-sm">
                   <p className="font-semibold text-ink">{t("deliveryContact")}</p>
@@ -215,9 +259,12 @@ export default function CheckoutPage() {
                       {t("name")}
                     </label>
                     <input
-                      required
+                      ref={checkoutNameInputRef}
                       value={name}
-                      onChange={(e) => setName(e.target.value)}
+                      onChange={(e) => {
+                        setCheckoutBanner(null);
+                        setName(e.target.value);
+                      }}
                       className="input-premium"
                       placeholder={t("namePlaceholder")}
                     />
@@ -227,9 +274,12 @@ export default function CheckoutPage() {
                       {t("phone")}
                     </label>
                     <input
-                      required
+                      ref={checkoutPhoneInputRef}
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(e) => {
+                        setCheckoutBanner(null);
+                        setPhone(e.target.value);
+                      }}
                       className="input-premium"
                       placeholder={t("phonePlaceholder")}
                     />
