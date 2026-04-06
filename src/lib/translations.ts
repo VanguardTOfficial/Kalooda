@@ -227,7 +227,14 @@ export const translations = {
     signingIn: "Signing in...",
     signingUp: "Creating account...",
     signInError: "Invalid email or password. Please try again.",
+    signInNetworkError:
+      "We could not reach the server. Check your connection and try again.",
     signUpError: "Could not create account. Please try again.",
+    signUpEmailInUse: "This email is already registered.",
+    signUpValidationError:
+      "Please check your details and password, then try again.",
+    signUpNetworkError:
+      "We could not reach the server. Check your connection and try again.",
     alreadyHaveAccount: "Already have an account?",
     dontHaveAccount: "Don't have an account?",
     continueWithGoogle: "Continue with Google",
@@ -495,7 +502,14 @@ export const translations = {
     signingIn: "جارٍ تسجيل الدخول...",
     signingUp: "جارٍ إنشاء الحساب...",
     signInError: "بريد إلكتروني أو كلمة مرور غير صحيحة. حاول مرة أخرى.",
+    signInNetworkError:
+      "تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.",
     signUpError: "تعذر إنشاء الحساب. حاول مرة أخرى.",
+    signUpEmailInUse: "هذا البريد الإلكتروني مسجّل مسبقاً.",
+    signUpValidationError:
+      "يرجى التحقق من بياناتك وكلمة المرور ثم المحاولة مرة أخرى.",
+    signUpNetworkError:
+      "تعذر الاتصال بالخادم. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.",
     alreadyHaveAccount: "لديك حساب بالفعل؟",
     dontHaveAccount: "ليس لديك حساب؟",
     continueWithGoogle: "المتابعة مع جوجل",

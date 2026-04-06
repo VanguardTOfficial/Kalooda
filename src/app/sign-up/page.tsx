@@ -9,6 +9,11 @@ import { useAuth } from "@/contexts/auth-context";
 import { useLanguage } from "@/contexts/language-context";
 import { getSafeNextPath } from "@/lib/auth-redirect";
 
+type SignUpErrorState =
+  | null
+  | { variant: "emailInUse" }
+  | { variant: "text"; text: string };
+
 export default function SignUpPage() {
   return (
     <Suspense
@@ -36,7 +41,7 @@ function SignUpContent() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<SignUpErrorState>(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -45,11 +50,17 @@ function SignUpContent() {
     setSubmitting(true);
     const err = await signUp(email, password, fullName, phone);
     if (err) {
-      setError(
-        err === "adminPortal"
-          ? t("adminAccountUseAdminSignIn")
-          : t("signUpError")
-      );
+      if (err === "adminPortal") {
+        setError({ variant: "text", text: t("adminAccountUseAdminSignIn") });
+      } else if (err === "emailInUse") {
+        setError({ variant: "emailInUse" });
+      } else if (err === "validation") {
+        setError({ variant: "text", text: t("signUpValidationError") });
+      } else if (err === "network") {
+        setError({ variant: "text", text: t("signUpNetworkError") });
+      } else {
+        setError({ variant: "text", text: t("signUpError") });
+      }
       setSubmitting(false);
     }
   }
@@ -205,9 +216,20 @@ function SignUpContent() {
               />
             </div>
 
-            {error && (
+            {error?.variant === "emailInUse" && (
               <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-                {error}
+                {t("signUpEmailInUse")}{" "}
+                <Link
+                  href={signInHref}
+                  className="font-semibold text-primary-dark underline hover:no-underline"
+                >
+                  {t("signIn")}
+                </Link>
+              </p>
+            )}
+            {error?.variant === "text" && (
+              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                {error.text}
               </p>
             )}
 

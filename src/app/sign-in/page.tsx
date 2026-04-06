@@ -51,11 +51,13 @@ function SignInContent() {
     setSubmitting(true);
     const err = await signIn(email, password);
     if (err) {
-      setError(
-        err === "adminPortal"
-          ? t("adminAccountUseAdminSignIn")
-          : err
-      );
+      if (err === "adminPortal") {
+        setError(t("adminAccountUseAdminSignIn"));
+      } else if (err === "network") {
+        setError(t("signInNetworkError"));
+      } else {
+        setError(t("signInError"));
+      }
       setSubmitting(false);
     }
   }
