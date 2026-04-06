@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createSupabaseProxyClient } from "@/lib/supabase-proxy";
 import { getSafeNextPath } from "@/lib/auth-redirect";
+import {
+  expireLegacyUnscopedAuthCookies,
+  redirectWithLegacyCookiePurge,
+} from "@/lib/auth-cookie-legacy";
 
 const PUBLIC_ROUTES = ["/", "/auth-error"];
 const PUBLIC_PREFIXES = [
@@ -35,6 +39,7 @@ function roleHomeCustomer(role: string | null): string {
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const response = NextResponse.next({ request });
+  expireLegacyUnscopedAuthCookies(request, response);
 
   async function refreshBothApiSessions() {
     const customer = createSupabaseProxyClient(request, response, "customer");
@@ -59,7 +64,7 @@ export async function proxy(request: NextRequest) {
         .eq("id", claims.sub)
         .single();
       if (profile?.role === "admin" || profile?.role === "super_admin") {
-        return NextResponse.redirect(new URL("/admin", request.url));
+        return redirectWithLegacyCookiePurge(request, new URL("/admin", request.url));
       }
     }
     return response;
@@ -75,7 +80,8 @@ export async function proxy(request: NextRequest) {
         .select("role")
         .eq("id", claims.sub)
         .single();
-      return NextResponse.redirect(
+      return redirectWithLegacyCookiePurge(
+        request,
         new URL(roleHomeCustomer(profile?.role ?? null), request.url)
       );
     }
@@ -99,7 +105,7 @@ export async function proxy(request: NextRequest) {
       const signInUrl = new URL("/admin/sign-in", request.url);
       const next = getSafeNextPath(pathname + request.nextUrl.search);
       if (next) signInUrl.searchParams.set("next", next);
-      return NextResponse.redirect(signInUrl);
+      return redirectWithLegacyCookiePurge(request, signInUrl);
     }
 
     const { data: profile } = await supabase
@@ -110,7 +116,10 @@ export async function proxy(request: NextRequest) {
 
     if (!profile) {
       console.error("MISSING_PROFILE", { userId: claims.sub, pathname });
-      return NextResponse.redirect(new URL("/auth-error", request.url));
+      return redirectWithLegacyCookiePurge(
+        request,
+        new URL("/auth-error", request.url)
+      );
     }
 
     const role = profile.role;
@@ -118,10 +127,10 @@ export async function proxy(request: NextRequest) {
     if (pathname.startsWith("/admin/functions")) {
       if (role !== "super_admin") {
         const target = role === "admin" ? "/admin" : "/";
-        return NextResponse.redirect(new URL(target, request.url));
+        return redirectWithLegacyCookiePurge(request, new URL(target, request.url));
       }
     } else if (role !== "admin" && role !== "super_admin") {
-      return NextResponse.redirect(new URL("/", request.url));
+      return redirectWithLegacyCookiePurge(request, new URL("/", request.url));
     }
 
     return response;
@@ -135,7 +144,7 @@ export async function proxy(request: NextRequest) {
     const signInUrl = new URL("/sign-in", request.url);
     const next = getSafeNextPath(pathname + request.nextUrl.search);
     if (next) signInUrl.searchParams.set("next", next);
-    return NextResponse.redirect(signInUrl);
+    return redirectWithLegacyCookiePurge(request, signInUrl);
   }
 
   const { data: profile } = await supabase
@@ -146,11 +155,14 @@ export async function proxy(request: NextRequest) {
 
   if (!profile) {
     console.error("MISSING_PROFILE", { userId: claims.sub, pathname });
-    return NextResponse.redirect(new URL("/auth-error", request.url));
+    return redirectWithLegacyCookiePurge(
+      request,
+      new URL("/auth-error", request.url)
+    );
   }
 
   if (profile.role === "admin" || profile.role === "super_admin") {
-    return NextResponse.redirect(new URL("/admin", request.url));
+    return redirectWithLegacyCookiePurge(request, new URL("/admin", request.url));
   }
 
   return response;

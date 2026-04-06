@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { expireLegacyUnscopedAuthCookies } from "@/lib/auth-cookie-legacy";
 import {
   adminAuthCookieOptions,
   customerAuthCookieOptions,
@@ -48,5 +49,6 @@ export async function POST(request: NextRequest) {
   );
 
   await supabase.auth.signOut();
+  expireLegacyUnscopedAuthCookies(request, res);
   return res;
 }

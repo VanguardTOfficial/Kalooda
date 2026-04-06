@@ -74,6 +74,10 @@ Run [supabase/scripts/issue-70-verify-counts.sql](../supabase/scripts/issue-70-v
 
 `next.config.ts` includes image hostnames for **both** Tokyo and Frankfurt so either project works until Tokyo is retired.
 
+## Session cookies after cutover
+
+The app namespaces auth cookies by Supabase project ref (e.g. `sb-customer-auth-mxbnmoagdufitnwrmsrn`). Old cookies (`sb-customer-auth` without ref) held **Tokyo** JWTs and caused **403** on `/auth/v1/user` when the site pointed at Frankfurt. Middleware and sign-out **expire** those legacy cookies; deploy the fix and users sign in again once.
+
 ## Production cutover
 
 1. Optional short **write freeze** on Tokyo (maintenance page or disable writes).
