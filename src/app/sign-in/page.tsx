@@ -54,7 +54,7 @@ function SignInContent() {
       setError(
         err === "adminPortal"
           ? t("adminAccountUseAdminSignIn")
-          : t("signInError")
+          : err
       );
       setSubmitting(false);
     }

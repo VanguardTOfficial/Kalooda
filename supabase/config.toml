@@ -158,8 +158,10 @@ additional_redirect_urls = [
   "https://kaloodasweets.com/auth/callback/admin",
   "https://www.kaloodasweets.com/auth/callback/customer",
   "https://www.kaloodasweets.com/auth/callback/admin",
+  "https://www.kaloodasweets.com/auth/callback",
   "http://localhost:3000/auth/callback/admin",
   "http://localhost:3000/auth/callback/customer",
+  "http://localhost:3000/auth/callback",
   "https://www.kaloodasweets.com/auth/reset-password"
 ]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).

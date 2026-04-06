@@ -74,6 +74,12 @@ Run [supabase/scripts/issue-70-verify-counts.sql](../supabase/scripts/issue-70-v
 
 `next.config.ts` includes image hostnames for **both** Tokyo and Frankfurt so either project works until Tokyo is retired.
 
+## Password sign-in returns 400 after migration
+
+Supabase responds with **HTTP 400** and `invalid_credentials` for a normal wrong password. The region migration script could not always copy `encrypted_password` from the hosted Admin API; affected users received a **random internal password**. Those accounts must use **Forgot password** once on Frankfurt to set a new password (or re-import `auth.users` from Tokyo via `pg_dump` if you need zero user friction).
+
+If the UI shows **Email not confirmed**, run [post-migration-confirm-all-emails.sql](../supabase/scripts/post-migration-confirm-all-emails.sql) in the Frankfurt SQL Editor (or enable SMTP and send confirmations properly).
+
 ## Session cookies after cutover
 
 The app namespaces auth cookies by Supabase project ref (e.g. `sb-customer-auth-mxbnmoagdufitnwrmsrn`). Old cookies (`sb-customer-auth` without ref) held **Tokyo** JWTs and caused **403** on `/auth/v1/user` when the site pointed at Frankfurt. Middleware and sign-out **expire** those legacy cookies; deploy the fix and users sign in again once.
