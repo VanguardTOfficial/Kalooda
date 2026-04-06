@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useReducer } from "react";
 import {
   Plus,
   Trash2,
@@ -17,6 +17,9 @@ import {
 import { useLanguage } from "@/contexts/language-context";
 import type { Product, Category, Driver, Order } from "@/types/database";
 import { CatalogImageField } from "@/components/admin/catalog-image-field";
+import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
+import { InlineBanner, inlineBannerErrorTextClassName } from "@/components/inline-banner";
+import { adminUiReducer, initialAdminUiState } from "./admin-ui-reducer";
 
 const statusIcons: Record<string, React.ElementType> = {
   pending: Clock,
@@ -126,6 +129,7 @@ function formToPayload(form: ProductFormData) {
 
 export default function FunctionsPage() {
   const { t, locale } = useLanguage();
+  const [adminUi, dispatch] = useReducer(adminUiReducer, initialAdminUiState);
 
   // --- Products state ---
   const [products, setProducts] = useState<Product[]>([]);
@@ -165,16 +169,6 @@ export default function FunctionsPage() {
   const [newDriverName, setNewDriverName] = useState("");
   const [newDriverPhone, setNewDriverPhone] = useState("");
   const [addingDriver, setAddingDriver] = useState(false);
-
-  const [categoryDeleteErrors, setCategoryDeleteErrors] = useState<
-    Record<string, string>
-  >({});
-  const [driverDeleteErrors, setDriverDeleteErrors] = useState<
-    Record<string, string>
-  >({});
-  const [availabilityErrors, setAvailabilityErrors] = useState<
-    Record<string, string>
-  >({});
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -225,6 +219,7 @@ export default function FunctionsPage() {
 
   // --- Product CRUD handlers ---
   function openNewProduct() {
+    dispatch({ type: "setProductFormError", value: null });
     setEditingId(null);
     setForm(emptyForm);
     setProductImagePending(null);
@@ -233,6 +228,7 @@ export default function FunctionsPage() {
   }
 
   function openEditProduct(p: Product) {
+    dispatch({ type: "setProductFormError", value: null });
     setEditingId(p.id);
     setForm(productToForm(p));
     setProductImagePending(null);
@@ -241,6 +237,7 @@ export default function FunctionsPage() {
   }
 
   function closeForm() {
+    dispatch({ type: "setProductFormError", value: null });
     setShowForm(false);
     setEditingId(null);
     setForm(emptyForm);
@@ -250,6 +247,7 @@ export default function FunctionsPage() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim() || saving) return;
+    dispatch({ type: "setProductFormError", value: null });
     setSaving(true);
 
     try {
@@ -261,7 +259,10 @@ export default function FunctionsPage() {
             "products"
           );
         } catch {
-          alert(t("imageUploadFailed"));
+          dispatch({
+            type: "setProductFormError",
+            value: t("imageUploadFailed"),
+          });
           setSaving(false);
           return;
         }
@@ -294,35 +295,27 @@ export default function FunctionsPage() {
       });
       closeForm();
     } catch {
-      alert(t("productSaveFailed"));
+      dispatch({
+        type: "setProductFormError",
+        value: t("productSaveFailed"),
+      });
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm(t("confirmDeleteProduct"))) return;
-    try {
-      const res = await fetch("/api/products", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      if (!res.ok) throw new Error();
-      setProducts((prev) => prev.filter((p) => p.id !== id));
-    } catch {
-      alert(t("productDeleteFailed"));
-    }
+  function requestDeleteProduct(id: string) {
+    dispatch({ type: "setPendingDelete", value: { kind: "product", id } });
   }
 
   async function toggleAvailability(product: Product) {
     const next = !product.unavailable_today;
     const msg = t("availabilityUpdateFailed");
 
-    setAvailabilityErrors((prev) => {
-      const next = { ...prev };
-      delete next[product.id];
-      return next;
+    dispatch({
+      type: "clearMapError",
+      map: "availabilityErrors",
+      id: product.id,
     });
 
     setProducts((prev) =>
@@ -338,10 +331,10 @@ export default function FunctionsPage() {
         body: JSON.stringify({ unavailable_today: next }),
       });
       if (!res.ok) throw new Error("availability failed");
-      setAvailabilityErrors((prev) => {
-        const next = { ...prev };
-        delete next[product.id];
-        return next;
+      dispatch({
+        type: "clearMapError",
+        map: "availabilityErrors",
+        id: product.id,
       });
     } catch {
       setProducts((prev) =>
@@ -349,28 +342,25 @@ export default function FunctionsPage() {
           p.id === product.id ? { ...p, unavailable_today: !next } : p
         )
       );
-      setAvailabilityErrors((prev) => ({ ...prev, [product.id]: msg }));
+      dispatch({
+        type: "setMapError",
+        map: "availabilityErrors",
+        id: product.id,
+        message: msg,
+      });
     }
   }
 
   // --- Order handlers ---
-  async function handleDeleteOrder(orderId: string) {
-    if (!confirm(t("confirmDeleteOrder"))) return;
-    try {
-      const res = await fetch(`/api/orders/${orderId}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error();
-      setOrders((prev) => prev.filter((o) => o.id !== orderId));
-    } catch {
-      alert(t("orderDeleteFailed"));
-    }
+  function requestDeleteOrder(orderId: string) {
+    dispatch({ type: "setPendingDelete", value: { kind: "order", id: orderId } });
   }
 
   // --- Category handlers ---
   async function addCategory(e: React.FormEvent) {
     e.preventDefault();
     if (!newCategoryName.trim() || addingCategory) return;
+    dispatch({ type: "setCategoryAddError", value: null });
     setAddingCategory(true);
     try {
       let image_url: string | null = null;
@@ -381,7 +371,10 @@ export default function FunctionsPage() {
             "categories"
           );
         } catch {
-          alert(t("imageUploadFailed"));
+          dispatch({
+            type: "setCategoryAddError",
+            value: t("imageUploadFailed"),
+          });
           setAddingCategory(false);
           return;
         }
@@ -404,7 +397,10 @@ export default function FunctionsPage() {
       setNewCategoryNameAr("");
       setNewCategoryImagePending(null);
     } catch {
-      alert(t("categoryAddFailed"));
+      dispatch({
+        type: "setCategoryAddError",
+        value: t("categoryAddFailed"),
+      });
     } finally {
       setAddingCategory(false);
     }
@@ -418,10 +414,12 @@ export default function FunctionsPage() {
       image_url: cat.image_url ?? "",
     });
     setCategoryEditImagePending(null);
+    dispatch({ type: "setCategoryEditError", value: null });
     setCategoryEditOpen(true);
   }
 
   function closeCategoryEdit() {
+    dispatch({ type: "setCategoryEditError", value: null });
     setCategoryEditOpen(false);
     setCategoryEditImagePending(null);
     setCategoryEditForm({
@@ -435,6 +433,7 @@ export default function FunctionsPage() {
   async function saveCategoryEdit(e: React.FormEvent) {
     e.preventDefault();
     if (!categoryEditForm.id || !categoryEditForm.name.trim()) return;
+    dispatch({ type: "setCategoryEditError", value: null });
     setCategoryEditSaving(true);
     try {
       let image_url = categoryEditForm.image_url;
@@ -445,7 +444,10 @@ export default function FunctionsPage() {
             "categories"
           );
         } catch {
-          alert(t("imageUploadFailed"));
+          dispatch({
+            type: "setCategoryEditError",
+            value: t("imageUploadFailed"),
+          });
           setCategoryEditSaving(false);
           return;
         }
@@ -469,18 +471,24 @@ export default function FunctionsPage() {
       );
       closeCategoryEdit();
     } catch {
-      alert(t("categoryUpdateFailed"));
+      dispatch({
+        type: "setCategoryEditError",
+        value: t("categoryUpdateFailed"),
+      });
     } finally {
       setCategoryEditSaving(false);
     }
   }
 
+  function requestDeleteCategory(id: string) {
+    dispatch({ type: "setPendingDelete", value: { kind: "category", id } });
+  }
+
   async function removeCategory(id: string) {
-    if (!confirm(t("confirmDeleteCategory"))) return;
-    setCategoryDeleteErrors((prev) => {
-      const next = { ...prev };
-      delete next[id];
-      return next;
+    dispatch({
+      type: "clearMapError",
+      map: "categoryDeleteErrors",
+      id,
     });
     try {
       const res = await fetch("/api/categories", {
@@ -490,16 +498,18 @@ export default function FunctionsPage() {
       });
       if (!res.ok) throw new Error();
       setCategories((prev) => prev.filter((c) => c.id !== id));
-      setCategoryDeleteErrors((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
+      dispatch({
+        type: "clearMapError",
+        map: "categoryDeleteErrors",
+        id,
       });
     } catch {
-      setCategoryDeleteErrors((prev) => ({
-        ...prev,
-        [id]: t("categoryDeleteFailed"),
-      }));
+      dispatch({
+        type: "setMapError",
+        map: "categoryDeleteErrors",
+        id,
+        message: t("categoryDeleteFailed"),
+      });
     }
   }
 
@@ -507,6 +517,7 @@ export default function FunctionsPage() {
   async function addDriver(e: React.FormEvent) {
     e.preventDefault();
     if (!newDriverName.trim() || addingDriver) return;
+    dispatch({ type: "setDriverAddError", value: null });
     setAddingDriver(true);
     try {
       const res = await fetch("/api/drivers", {
@@ -523,17 +534,20 @@ export default function FunctionsPage() {
       setNewDriverName("");
       setNewDriverPhone("");
     } catch {
-      alert(t("driverAddFailed"));
+      dispatch({
+        type: "setDriverAddError",
+        value: t("driverAddFailed"),
+      });
     } finally {
       setAddingDriver(false);
     }
   }
 
   async function removeDriver(id: string) {
-    setDriverDeleteErrors((prev) => {
-      const next = { ...prev };
-      delete next[id];
-      return next;
+    dispatch({
+      type: "clearMapError",
+      map: "driverDeleteErrors",
+      id,
     });
     try {
       const res = await fetch("/api/drivers", {
@@ -543,16 +557,78 @@ export default function FunctionsPage() {
       });
       if (!res.ok) throw new Error();
       setDrivers((prev) => prev.filter((d) => d.id !== id));
-      setDriverDeleteErrors((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
+      dispatch({
+        type: "clearMapError",
+        map: "driverDeleteErrors",
+        id,
       });
     } catch {
-      setDriverDeleteErrors((prev) => ({
-        ...prev,
-        [id]: t("driverDeleteFailed"),
-      }));
+      dispatch({
+        type: "setMapError",
+        map: "driverDeleteErrors",
+        id,
+        message: t("driverDeleteFailed"),
+      });
+    }
+  }
+
+  async function confirmPendingDelete() {
+    const pending = adminUi.pendingDelete;
+    if (!pending) return;
+    dispatch({ type: "setDeleteSubmitting", value: true });
+    try {
+      if (pending.kind === "product") {
+        try {
+          const res = await fetch("/api/products", {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: pending.id }),
+          });
+          if (!res.ok) throw new Error();
+          setProducts((prev) => prev.filter((p) => p.id !== pending.id));
+          dispatch({
+            type: "clearMapError",
+            map: "productDeleteErrors",
+            id: pending.id,
+          });
+          dispatch({ type: "setPendingDelete", value: null });
+        } catch {
+          dispatch({
+            type: "setMapError",
+            map: "productDeleteErrors",
+            id: pending.id,
+            message: t("productDeleteFailed"),
+          });
+          dispatch({ type: "setPendingDelete", value: null });
+        }
+      } else if (pending.kind === "order") {
+        try {
+          const res = await fetch(`/api/orders/${pending.id}`, {
+            method: "DELETE",
+          });
+          if (!res.ok) throw new Error();
+          setOrders((prev) => prev.filter((o) => o.id !== pending.id));
+          dispatch({
+            type: "clearMapError",
+            map: "orderDeleteErrors",
+            id: pending.id,
+          });
+          dispatch({ type: "setPendingDelete", value: null });
+        } catch {
+          dispatch({
+            type: "setMapError",
+            map: "orderDeleteErrors",
+            id: pending.id,
+            message: t("orderDeleteFailed"),
+          });
+          dispatch({ type: "setPendingDelete", value: null });
+        }
+      } else {
+        await removeCategory(pending.id);
+        dispatch({ type: "setPendingDelete", value: null });
+      }
+    } finally {
+      dispatch({ type: "setDeleteSubmitting", value: false });
     }
   }
 
@@ -560,8 +636,39 @@ export default function FunctionsPage() {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  const deleteConfirmCopy =
+    adminUi.pendingDelete?.kind === "product"
+      ? {
+          message: t("confirmDeleteProduct"),
+          confirm: t("deleteProduct"),
+        }
+      : adminUi.pendingDelete?.kind === "order"
+        ? {
+            message: t("confirmDeleteOrder"),
+            confirm: t("deleteOrder"),
+          }
+        : adminUi.pendingDelete?.kind === "category"
+          ? {
+              message: t("confirmDeleteCategory"),
+              confirm: t("removeCategory"),
+            }
+          : { message: "", confirm: "" };
+
   return (
     <>
+      <AdminConfirmDialog
+        open={adminUi.pendingDelete !== null}
+        message={deleteConfirmCopy.message}
+        confirmLabel={deleteConfirmCopy.confirm}
+        cancelLabel={t("cancel")}
+        pending={adminUi.deleteSubmitting}
+        onCancel={() => {
+          if (!adminUi.deleteSubmitting) {
+            dispatch({ type: "setPendingDelete", value: null });
+          }
+        }}
+        onConfirm={() => void confirmPendingDelete()}
+      />
       {/* ─── Product Management ─── */}
       <section>
         <div className="mb-4 flex items-center justify-between">
@@ -598,6 +705,14 @@ export default function FunctionsPage() {
                 <X className="h-5 w-5" />
               </button>
             </div>
+
+            {adminUi.productFormError ? (
+              <div className="mb-4">
+                <InlineBanner variant="error">
+                  <p>{adminUi.productFormError}</p>
+                </InlineBanner>
+              </div>
+            ) : null}
 
             {/* Language tabs */}
             <div className="mb-4 flex gap-1 rounded-lg bg-[rgba(31, 68, 60,0.06)] p-1">
@@ -800,29 +915,41 @@ export default function FunctionsPage() {
                               ? t("unavailableToday")
                               : t("available")}
                           </button>
-                          {availabilityErrors[p.id] ? (
-                            <p className="max-w-[14rem] text-xs font-medium text-red-600">
-                              {availabilityErrors[p.id]}
+                          {adminUi.availabilityErrors[p.id] ? (
+                            <p
+                              className={`max-w-[14rem] text-xs font-medium ${inlineBannerErrorTextClassName}`}
+                            >
+                              {adminUi.availabilityErrors[p.id]}
                             </p>
                           ) : null}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => openEditProduct(p)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-admin-border px-2.5 py-1.5 text-xs font-medium text-admin-ink hover:bg-[rgba(31, 68, 60,0.06)] transition-colors"
-                          >
-                            <Pencil className="h-3 w-3" />
-                            {t("editProduct")}
-                          </button>
-                          <button
-                            onClick={() => handleDelete(p.id)}
-                            className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                            {t("deleteProduct")}
-                          </button>
+                      <td className="px-4 py-3 align-top">
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => openEditProduct(p)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-admin-border px-2.5 py-1.5 text-xs font-medium text-admin-ink hover:bg-[rgba(31, 68, 60,0.06)] transition-colors"
+                            >
+                              <Pencil className="h-3 w-3" />
+                              {t("editProduct")}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => requestDeleteProduct(p.id)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              {t("deleteProduct")}
+                            </button>
+                          </div>
+                          {adminUi.productDeleteErrors[p.id] ? (
+                            <p
+                              className={`max-w-[14rem] text-xs font-medium ${inlineBannerErrorTextClassName}`}
+                            >
+                              {adminUi.productDeleteErrors[p.id]}
+                            </p>
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -859,6 +986,11 @@ export default function FunctionsPage() {
           onSubmit={addCategory}
           className="mb-4 flex flex-col gap-3"
         >
+          {adminUi.categoryAddError ? (
+            <InlineBanner variant="error">
+              <p>{adminUi.categoryAddError}</p>
+            </InlineBanner>
+          ) : null}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="flex-1">
               <label className="mb-1 block text-xs font-medium text-admin-muted">
@@ -945,16 +1077,18 @@ export default function FunctionsPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => void removeCategory(cat.id)}
+                            onClick={() => requestDeleteCategory(cat.id)}
                             className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
                           >
                             <Trash2 className="h-3 w-3" />
                             {t("removeCategory")}
                           </button>
                         </div>
-                        {categoryDeleteErrors[cat.id] ? (
-                          <p className="text-xs font-medium text-red-600">
-                            {categoryDeleteErrors[cat.id]}
+                        {adminUi.categoryDeleteErrors[cat.id] ? (
+                          <p
+                            className={`text-xs font-medium ${inlineBannerErrorTextClassName}`}
+                          >
+                            {adminUi.categoryDeleteErrors[cat.id]}
                           </p>
                         ) : null}
                       </div>
@@ -1000,6 +1134,11 @@ export default function FunctionsPage() {
                 </button>
               </div>
               <form onSubmit={saveCategoryEdit} className="space-y-4">
+                {adminUi.categoryEditError ? (
+                  <InlineBanner variant="error">
+                    <p>{adminUi.categoryEditError}</p>
+                  </InlineBanner>
+                ) : null}
                 <div>
                   <label className="mb-1 block text-xs font-medium text-admin-muted">
                     {t("categoryName")}
@@ -1141,16 +1280,24 @@ export default function FunctionsPage() {
                           {t(tKey)}
                         </span>
                       </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() =>
-                            handleDeleteOrder(order.id)
-                          }
-                          className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                          {t("deleteOrder")}
-                        </button>
+                      <td className="px-4 py-3 align-top">
+                        <div className="flex flex-col gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => requestDeleteOrder(order.id)}
+                            className="inline-flex w-fit items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                            {t("deleteOrder")}
+                          </button>
+                          {adminUi.orderDeleteErrors[order.id] ? (
+                            <p
+                              className={`max-w-[14rem] text-xs font-medium ${inlineBannerErrorTextClassName}`}
+                            >
+                              {adminUi.orderDeleteErrors[order.id]}
+                            </p>
+                          ) : null}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -1182,43 +1329,47 @@ export default function FunctionsPage() {
           </h2>
         </div>
 
-        <form
-          onSubmit={addDriver}
-          className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end"
-        >
-          <div className="flex-1">
-            <label className="mb-1 block text-xs font-medium text-admin-muted">
-              {t("driverName")}
-            </label>
-            <input
-              type="text"
-              value={newDriverName}
-              onChange={(e) => setNewDriverName(e.target.value)}
-              placeholder={t("driverNamePlaceholder")}
-              required
-              className="w-full rounded-lg border border-admin-border bg-[#fffcf8] px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-            />
+        <form onSubmit={addDriver} className="mb-4 flex flex-col gap-3">
+          {adminUi.driverAddError ? (
+            <InlineBanner variant="error">
+              <p>{adminUi.driverAddError}</p>
+            </InlineBanner>
+          ) : null}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-medium text-admin-muted">
+                {t("driverName")}
+              </label>
+              <input
+                type="text"
+                value={newDriverName}
+                onChange={(e) => setNewDriverName(e.target.value)}
+                placeholder={t("driverNamePlaceholder")}
+                required
+                className="w-full rounded-lg border border-admin-border bg-[#fffcf8] px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-medium text-admin-muted">
+                {t("driverPhone")}
+              </label>
+              <input
+                type="tel"
+                value={newDriverPhone}
+                onChange={(e) => setNewDriverPhone(e.target.value)}
+                placeholder={t("driverPhonePlaceholder")}
+                className="w-full rounded-lg border border-admin-border bg-[#fffcf8] px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={addingDriver || !newDriverName.trim()}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[#082018] hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Plus className="h-4 w-4" />
+              {addingDriver ? t("adding") : t("addDriver")}
+            </button>
           </div>
-          <div className="flex-1">
-            <label className="mb-1 block text-xs font-medium text-admin-muted">
-              {t("driverPhone")}
-            </label>
-            <input
-              type="tel"
-              value={newDriverPhone}
-              onChange={(e) => setNewDriverPhone(e.target.value)}
-              placeholder={t("driverPhonePlaceholder")}
-              className="w-full rounded-lg border border-admin-border bg-[#fffcf8] px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={addingDriver || !newDriverName.trim()}
-            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[#082018] hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Plus className="h-4 w-4" />
-            {addingDriver ? t("adding") : t("addDriver")}
-          </button>
         </form>
 
         <div className="rounded-xl border border-admin-border bg-admin-panel shadow-sm overflow-hidden">
@@ -1261,9 +1412,11 @@ export default function FunctionsPage() {
                           <Trash2 className="h-3 w-3" />
                           {t("removeDriver")}
                         </button>
-                        {driverDeleteErrors[driver.id] ? (
-                          <p className="text-xs font-medium text-red-600">
-                            {driverDeleteErrors[driver.id]}
+                        {adminUi.driverDeleteErrors[driver.id] ? (
+                          <p
+                            className={`text-xs font-medium ${inlineBannerErrorTextClassName}`}
+                          >
+                            {adminUi.driverDeleteErrors[driver.id]}
                           </p>
                         ) : null}
                       </div>

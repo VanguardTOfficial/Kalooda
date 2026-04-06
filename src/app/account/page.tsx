@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { getSupabaseCustomerBrowser } from "@/lib/supabase-client-customer";
 import { useLanguage } from "@/contexts/language-context";
@@ -10,6 +10,11 @@ import { AccountSubnav } from "@/components/account-subnav";
 import { ArrowLeft, Loader2, KeyRound } from "lucide-react";
 import Link from "next/link";
 import { useCartDrawerEvent } from "@/hooks/use-cart-drawer-event";
+import { InlineBanner } from "@/components/inline-banner";
+
+type ProfileMessage =
+  | null
+  | { variant: "success" | "error"; text: string };
 
 export default function AccountPage() {
   const { user, profile, refreshProfile, loading } = useAuth();
@@ -18,6 +23,9 @@ export default function AccountPage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [saving, setSaving] = useState(false);
+  const [profileMessage, setProfileMessage] = useState<ProfileMessage>(null);
+  const profileNameInputRef = useRef<HTMLInputElement>(null);
+  const profilePhoneInputRef = useRef<HTMLInputElement>(null);
 
   useCartDrawerEvent(setCartOpen);
 
@@ -31,6 +39,22 @@ export default function AccountPage() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!user?.id) return;
+    setProfileMessage(null);
+
+    const trimmedName = name.trim();
+    const trimmedPhone = phone.trim();
+    if (!trimmedName || !trimmedPhone) {
+      setProfileMessage({
+        variant: "error",
+        text: t("profileValidationNamePhoneRequired"),
+      });
+      requestAnimationFrame(() => {
+        if (!trimmedName) profileNameInputRef.current?.focus();
+        else profilePhoneInputRef.current?.focus();
+      });
+      return;
+    }
+
     setSaving(true);
     const supabase = getSupabaseCustomerBrowser();
     const { error } = await supabase
@@ -42,11 +66,17 @@ export default function AccountPage() {
       .eq("id", user.id);
     setSaving(false);
     if (error) {
-      alert(t("profileSaveFailedToast"));
+      setProfileMessage({
+        variant: "error",
+        text: t("profileSaveFailedToast"),
+      });
       return;
     }
     await refreshProfile();
-    alert(t("profileSavedToast"));
+    setProfileMessage({
+      variant: "success",
+      text: t("profileSavedToast"),
+    });
   }
 
   return (
@@ -77,7 +107,15 @@ export default function AccountPage() {
           </div>
         ) : (
           <>
-          <form onSubmit={handleSave} className="space-y-5">
+          <form noValidate onSubmit={handleSave} className="space-y-5">
+            {profileMessage ? (
+              <InlineBanner
+                variant={profileMessage.variant}
+                className="text-start"
+              >
+                <p>{profileMessage.text}</p>
+              </InlineBanner>
+            ) : null}
             <div className="surface-panel rounded-xl border border-[#1F443C]/10 p-5 sm:p-6">
               <div>
                 <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-ink-soft">
@@ -94,8 +132,12 @@ export default function AccountPage() {
                   {t("fullName")}
                 </label>
                 <input
+                  ref={profileNameInputRef}
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setProfileMessage(null);
+                    setName(e.target.value);
+                  }}
                   className="input-premium"
                   placeholder={t("fullNamePlaceholder")}
                 />
@@ -105,8 +147,12 @@ export default function AccountPage() {
                   {t("phone")}
                 </label>
                 <input
+                  ref={profilePhoneInputRef}
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    setProfileMessage(null);
+                    setPhone(e.target.value);
+                  }}
                   className="input-premium"
                   placeholder={t("phonePlaceholder")}
                 />
@@ -118,7 +164,10 @@ export default function AccountPage() {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setLocale("en")}
+                    onClick={() => {
+                      setProfileMessage(null);
+                      setLocale("en");
+                    }}
                     className={`flex-1 rounded-lg border py-2.5 text-sm font-semibold transition-colors ${
                       locale === "en"
                         ? "border-primary bg-primary/10 text-primary-dark"
@@ -129,7 +178,10 @@ export default function AccountPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setLocale("ar")}
+                    onClick={() => {
+                      setProfileMessage(null);
+                      setLocale("ar");
+                    }}
                     className={`flex-1 rounded-lg border py-2.5 text-sm font-semibold transition-colors ${
                       locale === "ar"
                         ? "border-primary bg-primary/10 text-primary-dark"
