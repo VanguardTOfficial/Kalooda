@@ -22,7 +22,10 @@ import {
   adminSelectableStatuses,
   orderStatusTranslationKey,
 } from "@/lib/order-status";
-import { CANCELLATION_REASONS } from "@/lib/cancellation-reasons";
+import {
+  CANCELLATION_REASONS,
+  cancellationReasonLabel,
+} from "@/lib/cancellation-reasons";
 import { InlineBanner } from "@/components/inline-banner";
 
 const PAGE_SIZE = 10;
@@ -468,7 +471,7 @@ export default function AdminDashboard() {
                   <option value="">{t("cancellationReasonPlaceholder")}</option>
                   {CANCELLATION_REASONS.map((r) => (
                     <option key={r} value={r}>
-                      {r}
+                      {cancellationReasonLabel(r, locale)}
                     </option>
                   ))}
                 </select>
@@ -690,7 +693,7 @@ export default function AdminDashboard() {
                             </span>
                             {order.status === "cancelled" && order.cancellation_reason && (
                               <span className="text-[11px] text-admin-muted">
-                                {order.cancellation_reason}
+                                {cancellationReasonLabel(order.cancellation_reason, locale)}
                               </span>
                             )}
                           </div>
