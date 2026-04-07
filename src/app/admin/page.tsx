@@ -9,6 +9,8 @@ import {
   CheckCircle,
   Store,
   Phone,
+  XCircle,
+  X,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
 import { getSupabaseAdminBrowser } from "@/lib/supabase-client-admin";
@@ -20,6 +22,8 @@ import {
   adminSelectableStatuses,
   orderStatusTranslationKey,
 } from "@/lib/order-status";
+import { CANCELLATION_REASONS } from "@/lib/cancellation-reasons";
+import { InlineBanner } from "@/components/inline-banner";
 
 const PAGE_SIZE = 10;
 
@@ -32,16 +36,22 @@ type PillKey =
   | "out_for_delivery"
   | "ready_for_pickup"
   | "completed_delivery"
-  | "completed_pickup";
+  | "completed_pickup"
+  | "cancelled";
 
-const STATUS_PILLS = [
-  { key: "pending" as PillKey, status: "pending" as OrderStatus, fulfillment: "delivery" as FulfillmentType },
-  { key: "preparing" as PillKey, status: "preparing" as OrderStatus, fulfillment: "delivery" as FulfillmentType },
-  { key: "out_for_delivery" as PillKey, status: "out_for_delivery" as OrderStatus, fulfillment: "delivery" as FulfillmentType },
-  { key: "ready_for_pickup" as PillKey, status: "ready_for_pickup" as OrderStatus, fulfillment: "pickup" as FulfillmentType },
-  { key: "completed_delivery" as PillKey, status: "completed" as OrderStatus, fulfillment: "delivery" as FulfillmentType },
-  { key: "completed_pickup" as PillKey, status: "completed" as OrderStatus, fulfillment: "pickup" as FulfillmentType },
-] as const;
+const STATUS_PILLS: readonly {
+  key: PillKey;
+  status: string;
+  fulfillment: FulfillmentType;
+}[] = [
+  { key: "pending", status: "pending", fulfillment: "delivery" },
+  { key: "preparing", status: "preparing", fulfillment: "delivery" },
+  { key: "out_for_delivery", status: "out_for_delivery", fulfillment: "delivery" },
+  { key: "ready_for_pickup", status: "ready_for_pickup", fulfillment: "pickup" },
+  { key: "completed_delivery", status: "completed", fulfillment: "delivery" },
+  { key: "completed_pickup", status: "completed", fulfillment: "pickup" },
+  { key: "cancelled", status: "cancelled", fulfillment: "delivery" },
+];
 
 const DEFAULT_ACTIVE_PILLS = new Set<PillKey>([
   "pending",
@@ -57,6 +67,7 @@ const pillIcons: Record<PillKey, React.ElementType> = {
   ready_for_pickup: Store,
   completed_delivery: CheckCircle,
   completed_pickup: CheckCircle,
+  cancelled: XCircle,
 };
 
 const pillColors: Record<PillKey, { color: string; bg: string }> = {
@@ -66,6 +77,7 @@ const pillColors: Record<PillKey, { color: string; bg: string }> = {
   ready_for_pickup: { color: "text-teal-800", bg: "bg-teal-100" },
   completed_delivery: { color: "text-emerald-800", bg: "bg-emerald-100" },
   completed_pickup: { color: "text-emerald-800", bg: "bg-emerald-100" },
+  cancelled: { color: "text-red-700", bg: "bg-red-100" },
 };
 
 const rowStatusColors: Record<string, { color: string; bg: string }> = {
@@ -74,6 +86,7 @@ const rowStatusColors: Record<string, { color: string; bg: string }> = {
   out_for_delivery: { color: "text-purple-700", bg: "bg-purple-100" },
   ready_for_pickup: { color: "text-teal-800", bg: "bg-teal-100" },
   completed: { color: "text-emerald-800", bg: "bg-emerald-100" },
+  cancelled: { color: "text-red-700", bg: "bg-red-100" },
 };
 
 const rowStatusIcons: Record<string, React.ElementType> = {
@@ -82,6 +95,7 @@ const rowStatusIcons: Record<string, React.ElementType> = {
   out_for_delivery: Truck,
   ready_for_pickup: Store,
   completed: CheckCircle,
+  cancelled: XCircle,
 };
 
 export default function AdminDashboard() {
@@ -98,6 +112,13 @@ export default function AdminDashboard() {
     new Set(DEFAULT_ACTIVE_PILLS)
   );
   const [ordersVisible, setOrdersVisible] = useState(PAGE_SIZE);
+
+  // Cancel modal
+  const [cancelOrder, setCancelOrder] = useState<Order | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelNotes, setCancelNotes] = useState("");
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   // --- Customers ---
   const [customers, setCustomers] = useState<Profile[]>([]);
@@ -205,7 +226,6 @@ export default function AdminDashboard() {
     if (tab === "drivers") void loadDrivers();
   }
 
-  // Mount: load orders + subscribe to realtime
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -266,6 +286,45 @@ export default function AdminDashboard() {
     }
   }
 
+  function openCancelModal(order: Order) {
+    setCancelOrder(order);
+    setCancelReason("");
+    setCancelNotes("");
+    setCancelError(null);
+  }
+
+  function closeCancelModal() {
+    if (cancelling) return;
+    setCancelOrder(null);
+    setCancelError(null);
+  }
+
+  async function submitCancel() {
+    if (!cancelOrder || !cancelReason || cancelling) return;
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      const res = await fetch(`/api/orders/${cancelOrder.id}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: cancelReason, notes: cancelNotes }),
+      });
+      if (!res.ok) {
+        setCancelError(t("orderCancelFailed"));
+        return;
+      }
+      const updated = (await res.json()) as Order;
+      setOrders((prev) =>
+        prev.map((o) => (o.id === updated.id ? { ...o, ...updated } : o))
+      );
+      setCancelOrder(null);
+    } catch {
+      setCancelError(t("orderCancelFailed"));
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   async function toggleAvailability(product: Product) {
     const next = !product.unavailable_today;
     const msg = t("availabilityUpdateFailed");
@@ -317,9 +376,20 @@ export default function AdminDashboard() {
     }).length;
   }
 
+  function pillLabel(pill: (typeof STATUS_PILLS)[number]): string {
+    if (pill.key === "cancelled") return t("cancelled");
+    return t(
+      orderStatusTranslationKey({
+        status: pill.status as OrderStatus,
+        fulfillment_type: pill.fulfillment,
+      })
+    );
+  }
+
   const filteredOrders = orders.filter((o) => {
     const ft: FulfillmentType =
       (o.fulfillment_type ?? "delivery") === "pickup" ? "pickup" : "delivery";
+    if (o.status === "cancelled") return activePills.has("cancelled");
     if (o.status === "completed") {
       return activePills.has(
         ft === "delivery" ? "completed_delivery" : "completed_pickup"
@@ -340,8 +410,114 @@ export default function AdminDashboard() {
     { key: "drivers", label: t("drivers") },
   ];
 
+  const isTerminal = (status: string) =>
+    status === "completed" || status === "cancelled";
+
   return (
     <>
+      {/* Cancel order modal */}
+      {cancelOrder && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal
+          aria-labelledby="cancel-order-title"
+        >
+          <div className="w-full max-w-md rounded-xl border border-admin-border bg-admin-panel p-6 shadow-lg">
+            <div className="mb-4 flex items-center justify-between">
+              <h3
+                id="cancel-order-title"
+                className="font-semibold text-admin-ink"
+              >
+                {t("cancelOrderTitle")} — {cancelOrder.display_id}
+              </h3>
+              <button
+                type="button"
+                onClick={closeCancelModal}
+                disabled={cancelling}
+                className="rounded-lg p-1 text-admin-muted hover:bg-[rgba(31,68,60,0.06)] disabled:opacity-50"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="mb-4 text-sm text-admin-muted">
+              {t("cancelOrderConfirm")}
+            </p>
+
+            {cancelError && (
+              <div className="mb-4">
+                <InlineBanner variant="error">
+                  <p>{cancelError}</p>
+                </InlineBanner>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-admin-muted">
+                  {t("cancellationReason")}
+                  <span className="ms-1 text-red-500">*</span>
+                </label>
+                <select
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  disabled={cancelling}
+                  className="admin-input"
+                >
+                  <option value="">{t("cancellationReasonPlaceholder")}</option>
+                  {CANCELLATION_REASONS.map((r) => (
+                    <option key={r} value={r}>
+                      {r}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-medium text-admin-muted">
+                  {t("cancellationNotes")}
+                </label>
+                <textarea
+                  value={cancelNotes}
+                  onChange={(e) => setCancelNotes(e.target.value)}
+                  disabled={cancelling}
+                  rows={3}
+                  placeholder={t("cancellationNotesPlaceholder")}
+                  className="admin-input resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeCancelModal}
+                disabled={cancelling}
+                className="rounded-lg border border-admin-border px-4 py-2 text-sm font-medium text-admin-muted transition-colors hover:bg-[rgba(31,68,60,0.06)] disabled:opacity-50"
+              >
+                {t("cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void submitCancel()}
+                disabled={!cancelReason || cancelling}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {cancelling ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    {t("cancelOrder")}
+                  </span>
+                ) : (
+                  t("cancelOrder")
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-bold text-admin-ink">
@@ -382,16 +558,12 @@ export default function AdminDashboard() {
       {/* ── Orders tab ── */}
       {activeTab === "orders" && (
         <div>
-          {/* Fixed status filter pills — always rendered regardless of count */}
+          {/* Fixed status filter pills */}
           <div className="mb-4 flex flex-wrap gap-2">
             {STATUS_PILLS.map((pill) => {
               const Icon = pillIcons[pill.key];
               const colors = pillColors[pill.key];
               const isActive = activePills.has(pill.key);
-              const tKey = orderStatusTranslationKey({
-                status: pill.status,
-                fulfillment_type: pill.fulfillment,
-              });
               const count = pillCount(pill);
               return (
                 <button
@@ -405,7 +577,7 @@ export default function AdminDashboard() {
                   }`}
                 >
                   <Icon className="h-3.5 w-3.5" />
-                  {t(tKey)}
+                  {pillLabel(pill)}
                   <span
                     className={`ms-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
                       isActive ? "bg-white/40" : "bg-[rgba(31,68,60,0.06)]"
@@ -459,14 +631,20 @@ export default function AdminDashboard() {
                       rowStatusColors[order.status] ?? rowStatusColors.pending;
                     const Icon =
                       rowStatusIcons[order.status] ?? Clock;
-                    const tKey = orderStatusTranslationKey({
-                      status: order.status as OrderStatus,
-                      fulfillment_type: order.fulfillment_type,
-                    });
-                    const selectable = adminSelectableStatuses({
-                      current: order.status as OrderStatus,
-                      fulfillment,
-                    });
+                    const terminal = isTerminal(order.status);
+                    const tKey =
+                      order.status === "cancelled"
+                        ? null
+                        : orderStatusTranslationKey({
+                            status: order.status as OrderStatus,
+                            fulfillment_type: order.fulfillment_type,
+                          });
+                    const selectable = terminal
+                      ? []
+                      : adminSelectableStatuses({
+                          current: order.status as OrderStatus,
+                          fulfillment,
+                        });
                     return (
                       <tr
                         key={order.id}
@@ -477,13 +655,12 @@ export default function AdminDashboard() {
                         <td className="px-4 py-3 font-semibold text-admin-ink">{order.display_id}</td>
                         <td className="px-4 py-3 text-admin-ink">{order.customer_name}</td>
                         <td className="px-4 py-3 text-admin-muted">
-                          {(order.fulfillment_type ?? "delivery") === "pickup"
+                          {fulfillment === "pickup"
                             ? t("fulfillmentPickup")
                             : t("fulfillmentDelivery")}
                         </td>
                         <td className="max-w-[12rem] whitespace-pre-wrap break-words px-4 py-3 text-admin-muted">
-                          {(order.fulfillment_type ?? "delivery") === "delivery" &&
-                          order.delivery_address
+                          {fulfillment === "delivery" && order.delivery_address
                             ? order.delivery_address
                             : "—"}
                         </td>
@@ -504,33 +681,53 @@ export default function AdminDashboard() {
                           ₪{order.total_price.toFixed(2)}
                         </td>
                         <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${colors.bg} ${colors.color}`}
-                          >
-                            <Icon className="h-3 w-3" />
-                            {t(tKey)}
-                          </span>
+                          <div className="flex flex-col gap-1">
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${colors.bg} ${colors.color}`}
+                            >
+                              <Icon className="h-3 w-3" />
+                              {tKey ? t(tKey) : t("cancelled")}
+                            </span>
+                            {order.status === "cancelled" && order.cancellation_reason && (
+                              <span className="text-[11px] text-admin-muted">
+                                {order.cancellation_reason}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3">
-                          <select
-                            value={order.status}
-                            disabled={order.status === "completed"}
-                            onChange={(e) =>
-                              void updateStatus(order.id, e.target.value)
-                            }
-                            className="admin-input max-w-[13rem] px-2 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-70"
-                          >
-                            {selectable.map((opt) => (
-                              <option key={opt} value={opt}>
-                                {t(
-                                  orderStatusTranslationKey({
-                                    status: opt,
-                                    fulfillment_type: order.fulfillment_type,
-                                  })
-                                )}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="flex flex-col gap-1.5">
+                            {!terminal && (
+                              <select
+                                value={order.status}
+                                onChange={(e) =>
+                                  void updateStatus(order.id, e.target.value)
+                                }
+                                className="admin-input max-w-[13rem] px-2 py-1.5 text-xs"
+                              >
+                                {selectable.map((opt) => (
+                                  <option key={opt} value={opt}>
+                                    {t(
+                                      orderStatusTranslationKey({
+                                        status: opt,
+                                        fulfillment_type: order.fulfillment_type,
+                                      })
+                                    )}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                            {!terminal && (
+                              <button
+                                type="button"
+                                onClick={() => openCancelModal(order)}
+                                className="inline-flex w-fit items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
+                              >
+                                <XCircle className="h-3 w-3" />
+                                {t("cancelOrder")}
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -606,9 +803,7 @@ export default function AdminDashboard() {
                 <tbody className="divide-y divide-admin-border">
                   {visibleCustomers.map((c) => (
                     <tr key={c.id}>
-                      <td className="px-4 py-3 font-medium text-admin-ink">
-                        {c.full_name || "—"}
-                      </td>
+                      <td className="px-4 py-3 font-medium text-admin-ink">{c.full_name || "—"}</td>
                       <td className="px-4 py-3 text-admin-muted">
                         {c.phone ? (
                           <span className="inline-flex items-center gap-1.5">
@@ -619,9 +814,7 @@ export default function AdminDashboard() {
                           <span className="text-admin-muted/50">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-admin-muted">
-                        {c.preferred_language ?? "—"}
-                      </td>
+                      <td className="px-4 py-3 text-admin-muted">{c.preferred_language ?? "—"}</td>
                     </tr>
                   ))}
                   {customersLoading && (
@@ -687,13 +880,9 @@ export default function AdminDashboard() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-admin-ink">
-                      {locale === "ar" && product.name_ar
-                        ? product.name_ar
-                        : product.name}
+                      {locale === "ar" && product.name_ar ? product.name_ar : product.name}
                     </p>
-                    <p className="text-xs text-admin-muted">
-                      ₪{product.price.toFixed(2)}
-                    </p>
+                    <p className="text-xs text-admin-muted">₪{product.price.toFixed(2)}</p>
                   </div>
                   <button
                     type="button"
@@ -704,15 +893,11 @@ export default function AdminDashboard() {
                         : "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
                     }`}
                   >
-                    {product.unavailable_today
-                      ? t("unavailableToday")
-                      : t("available")}
+                    {product.unavailable_today ? t("unavailableToday") : t("available")}
                   </button>
                 </div>
                 {availabilityErrors[product.id] ? (
-                  <p className="text-xs font-medium text-red-600">
-                    {availabilityErrors[product.id]}
-                  </p>
+                  <p className="text-xs font-medium text-red-600">{availabilityErrors[product.id]}</p>
                 ) : null}
               </div>
             ))}
@@ -771,9 +956,7 @@ export default function AdminDashboard() {
                 <tbody className="divide-y divide-admin-border">
                   {visibleDrivers.map((driver) => (
                     <tr key={driver.id}>
-                      <td className="px-4 py-3 font-medium text-admin-ink">
-                        {driver.name}
-                      </td>
+                      <td className="px-4 py-3 font-medium text-admin-ink">{driver.name}</td>
                       <td className="px-4 py-3 text-admin-muted">
                         {driver.phone ? (
                           <span className="inline-flex items-center gap-1.5">

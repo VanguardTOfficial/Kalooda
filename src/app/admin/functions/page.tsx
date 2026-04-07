@@ -11,17 +11,48 @@ import {
   Package,
   Tag,
   RefreshCw,
+  ClipboardList,
+  XCircle,
+  Clock,
+  Truck,
+  Store,
+  CheckCircle,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
-import type { Product, Category, Driver } from "@/types/database";
+import type { Order, Product, Category, Driver } from "@/types/database";
 import { CatalogImageField } from "@/components/admin/catalog-image-field";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { InlineBanner, inlineBannerErrorTextClassName } from "@/components/inline-banner";
 import { adminUiReducer, initialAdminUiState } from "./admin-ui-reducer";
+import {
+  type OrderStatus,
+  type FulfillmentType,
+  adminSelectableStatuses,
+  orderStatusTranslationKey,
+} from "@/lib/order-status";
+import { CANCELLATION_REASONS } from "@/lib/cancellation-reasons";
 
 const PAGE_SIZE = 10;
 
-type FunctionsTab = "products" | "categories" | "drivers";
+type FunctionsTab = "products" | "categories" | "drivers" | "orders";
+
+const orderStatusColors: Record<string, { color: string; bg: string }> = {
+  pending: { color: "text-amber-700", bg: "bg-amber-100" },
+  preparing: { color: "text-blue-700", bg: "bg-blue-100" },
+  out_for_delivery: { color: "text-purple-700", bg: "bg-purple-100" },
+  ready_for_pickup: { color: "text-teal-800", bg: "bg-teal-100" },
+  completed: { color: "text-emerald-800", bg: "bg-emerald-100" },
+  cancelled: { color: "text-red-700", bg: "bg-red-100" },
+};
+
+const orderStatusIcons: Record<string, React.ElementType> = {
+  pending: Clock,
+  preparing: Package,
+  out_for_delivery: Truck,
+  ready_for_pickup: Store,
+  completed: CheckCircle,
+  cancelled: XCircle,
+};
 
 interface ProductFormData {
   name: string;
@@ -153,6 +184,19 @@ export default function FunctionsPage() {
   const [driversVisible, setDriversVisible] = useState(PAGE_SIZE);
   const [driversLoading, setDriversLoading] = useState(false);
 
+  // --- Orders state ---
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const ordersLoaded = useRef(false);
+  const [ordersVisible, setOrdersVisible] = useState(PAGE_SIZE);
+
+  // Cancel modal
+  const [cancelOrder, setCancelOrder] = useState<Order | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelNotes, setCancelNotes] = useState("");
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
   const fetchProducts = useCallback(async () => {
     try {
       const res = await fetch("/api/products");
@@ -189,6 +233,23 @@ export default function FunctionsPage() {
     }
   }, []);
 
+  const fetchOrders = useCallback(async () => {
+    if (ordersLoaded.current) return;
+    setOrdersLoading(true);
+    try {
+      const res = await fetch("/api/orders");
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setOrders(data);
+        ordersLoaded.current = true;
+      }
+    } catch (err) {
+      console.error("Failed to fetch orders:", err);
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchProducts();
     fetchCategories();
@@ -196,8 +257,63 @@ export default function FunctionsPage() {
 
   function handleTabChange(tab: FunctionsTab) {
     setActiveTab(tab);
-    if (tab === "drivers" && !driversLoaded.current) {
-      void fetchDrivers();
+    if (tab === "drivers" && !driversLoaded.current) void fetchDrivers();
+    if (tab === "orders" && !ordersLoaded.current) void fetchOrders();
+  }
+
+  function openCancelModal(order: Order) {
+    setCancelOrder(order);
+    setCancelReason("");
+    setCancelNotes("");
+    setCancelError(null);
+  }
+
+  function closeCancelModal() {
+    if (cancelling) return;
+    setCancelOrder(null);
+    setCancelError(null);
+  }
+
+  async function submitCancel() {
+    if (!cancelOrder || !cancelReason || cancelling) return;
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      const res = await fetch(`/api/orders/${cancelOrder.id}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: cancelReason, notes: cancelNotes }),
+      });
+      if (!res.ok) {
+        setCancelError(t("orderCancelFailed"));
+        return;
+      }
+      const updated = (await res.json()) as Order;
+      setOrders((prev) =>
+        prev.map((o) => (o.id === updated.id ? { ...o, ...updated } : o))
+      );
+      setCancelOrder(null);
+    } catch {
+      setCancelError(t("orderCancelFailed"));
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  async function updateOrderStatus(orderId: string, newStatus: string) {
+    try {
+      const res = await fetch(`/api/orders/${orderId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as Order;
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, ...data } : o))
+      );
+    } catch (err) {
+      console.error("Failed to update order status:", err);
     }
   }
 
@@ -636,7 +752,7 @@ export default function FunctionsPage() {
 
       {/* Tab nav */}
       <div className="mb-6 flex w-fit gap-1 rounded-xl border border-admin-border bg-admin-panel p-1">
-        {(["products", "categories", "drivers"] as FunctionsTab[]).map((tab) => (
+        {(["products", "categories", "drivers", "orders"] as FunctionsTab[]).map((tab) => (
           <button
             key={tab}
             type="button"
@@ -651,7 +767,9 @@ export default function FunctionsPage() {
               ? t("products")
               : tab === "categories"
                 ? t("categories")
-                : t("drivers")}
+                : tab === "drivers"
+                  ? t("drivers")
+                  : t("orders")}
           </button>
         ))}
       </div>
@@ -1257,6 +1375,267 @@ export default function FunctionsPage() {
             </div>
           )}
         </section>
+      )}
+
+      {/* ── Orders tab (super_admin) ── */}
+      {activeTab === "orders" && (
+        <>
+          {/* Cancel modal */}
+          {cancelOrder && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+              role="dialog"
+              aria-modal
+              aria-labelledby="fn-cancel-order-title"
+            >
+              <div className="w-full max-w-md rounded-xl border border-admin-border bg-admin-panel p-6 shadow-lg">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3
+                    id="fn-cancel-order-title"
+                    className="font-semibold text-admin-ink"
+                  >
+                    {t("cancelOrderTitle")} — {cancelOrder.display_id}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={closeCancelModal}
+                    disabled={cancelling}
+                    className="rounded-lg p-1 text-admin-muted hover:bg-[rgba(31,68,60,0.06)] disabled:opacity-50"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <p className="mb-4 text-sm text-admin-muted">
+                  {t("cancelOrderConfirm")}
+                </p>
+                {cancelError && (
+                  <div className="mb-4">
+                    <InlineBanner variant="error">
+                      <p>{cancelError}</p>
+                    </InlineBanner>
+                  </div>
+                )}
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-admin-muted">
+                      {t("cancellationReason")}
+                      <span className="ms-1 text-red-500">*</span>
+                    </label>
+                    <select
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      disabled={cancelling}
+                      className="admin-input"
+                    >
+                      <option value="">{t("cancellationReasonPlaceholder")}</option>
+                      {CANCELLATION_REASONS.map((r) => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-admin-muted">
+                      {t("cancellationNotes")}
+                    </label>
+                    <textarea
+                      value={cancelNotes}
+                      onChange={(e) => setCancelNotes(e.target.value)}
+                      disabled={cancelling}
+                      rows={3}
+                      placeholder={t("cancellationNotesPlaceholder")}
+                      className="admin-input resize-none"
+                    />
+                  </div>
+                </div>
+                <div className="mt-5 flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={closeCancelModal}
+                    disabled={cancelling}
+                    className="rounded-lg border border-admin-border px-4 py-2 text-sm font-medium text-admin-muted transition-colors hover:bg-[rgba(31,68,60,0.06)] disabled:opacity-50"
+                  >
+                    {t("cancel")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void submitCancel()}
+                    disabled={!cancelReason || cancelling}
+                    className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {cancelling ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                        {t("cancelOrder")}
+                      </span>
+                    ) : (
+                      t("cancelOrder")
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="mb-4 flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50">
+              <ClipboardList className="h-4 w-4 text-blue-600" />
+            </div>
+            <h2 className="text-lg font-semibold text-admin-ink">{t("orders")}</h2>
+          </div>
+
+          <div className="overflow-hidden rounded-xl border border-admin-border bg-admin-panel shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="admin-table-head text-start">
+                    <th className="px-4 py-3 text-start font-semibold text-admin-muted">{t("order")}</th>
+                    <th className="px-4 py-3 text-start font-semibold text-admin-muted">{t("customer")}</th>
+                    <th className="px-4 py-3 text-start font-semibold text-admin-muted">{t("adminFulfillment")}</th>
+                    <th className="px-4 py-3 text-start font-semibold text-admin-muted">{t("items")}</th>
+                    <th className="px-4 py-3 text-start font-semibold text-admin-muted">{t("total")}</th>
+                    <th className="px-4 py-3 text-start font-semibold text-admin-muted">{t("status")}</th>
+                    <th className="px-4 py-3 text-start font-semibold text-admin-muted">{t("actions")}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-admin-border">
+                  {orders.slice(0, ordersVisible).map((order) => {
+                    const fulfillment: FulfillmentType =
+                      (order.fulfillment_type ?? "delivery") === "pickup"
+                        ? "pickup"
+                        : "delivery";
+                    const terminal =
+                      order.status === "completed" || order.status === "cancelled";
+                    const colors =
+                      orderStatusColors[order.status] ?? orderStatusColors.pending;
+                    const Icon =
+                      orderStatusIcons[order.status] ?? Clock;
+                    const tKey =
+                      order.status === "cancelled"
+                        ? null
+                        : orderStatusTranslationKey({
+                            status: order.status as OrderStatus,
+                            fulfillment_type: order.fulfillment_type,
+                          });
+                    const selectable = terminal
+                      ? []
+                      : adminSelectableStatuses({
+                          current: order.status as OrderStatus,
+                          fulfillment,
+                        });
+                    return (
+                      <tr key={order.id}>
+                        <td className="px-4 py-3 font-semibold text-admin-ink">
+                          {order.display_id}
+                        </td>
+                        <td className="px-4 py-3 text-admin-ink">
+                          {order.customer_name}
+                        </td>
+                        <td className="px-4 py-3 text-admin-muted">
+                          {fulfillment === "pickup"
+                            ? t("fulfillmentPickup")
+                            : t("fulfillmentDelivery")}
+                        </td>
+                        <td className="px-4 py-3 text-admin-muted">
+                          {order.items
+                            .map(
+                              (i) =>
+                                `${locale === "ar" && i.product_name_ar ? i.product_name_ar : i.product_name} (x${i.quantity})`
+                            )
+                            .join(", ")}
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-admin-ink">
+                          ₪{order.total_price.toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col gap-1">
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${colors.bg} ${colors.color}`}
+                            >
+                              <Icon className="h-3 w-3" />
+                              {tKey ? t(tKey) : t("cancelled")}
+                            </span>
+                            {order.status === "cancelled" &&
+                              order.cancellation_reason && (
+                                <span className="text-[11px] text-admin-muted">
+                                  {order.cancellation_reason}
+                                </span>
+                              )}
+                            {order.status === "cancelled" &&
+                              order.cancellation_notes && (
+                                <span className="text-[11px] italic text-admin-muted/70">
+                                  {order.cancellation_notes}
+                                </span>
+                              )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 align-top">
+                          <div className="flex flex-col gap-1.5">
+                            {!terminal && (
+                              <select
+                                value={order.status}
+                                onChange={(e) =>
+                                  void updateOrderStatus(order.id, e.target.value)
+                                }
+                                className="admin-input max-w-[13rem] px-2 py-1.5 text-xs"
+                              >
+                                {selectable.map((opt) => (
+                                  <option key={opt} value={opt}>
+                                    {t(
+                                      orderStatusTranslationKey({
+                                        status: opt,
+                                        fulfillment_type: order.fulfillment_type,
+                                      })
+                                    )}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                            {!terminal && (
+                              <button
+                                type="button"
+                                onClick={() => openCancelModal(order)}
+                                className="inline-flex w-fit items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
+                              >
+                                <XCircle className="h-3 w-3" />
+                                {t("cancelOrder")}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {ordersLoading && (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-12 text-center text-admin-muted">
+                        <RefreshCw className="mx-auto h-5 w-5 animate-spin opacity-50" />
+                      </td>
+                    </tr>
+                  )}
+                  {!ordersLoading && orders.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-12 text-center text-admin-muted">
+                        {t("noOrders")}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {orders.length > ordersVisible && (
+            <div className="mt-4 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setOrdersVisible((v) => v + PAGE_SIZE)}
+                className="rounded-lg border border-admin-border bg-admin-panel px-5 py-2 text-sm font-semibold text-admin-ink transition-colors hover:bg-[rgba(31,68,60,0.05)]"
+              >
+                {t("loadMore")}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </>
   );
