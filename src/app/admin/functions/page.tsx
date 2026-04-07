@@ -22,8 +22,11 @@ import { CatalogImageField } from "@/components/admin/catalog-image-field";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { InlineBanner, inlineBannerErrorTextClassName } from "@/components/inline-banner";
 import { adminUiReducer, initialAdminUiState } from "./admin-ui-reducer";
-import type { OrderStatus } from "@/lib/order-status";
-import { orderStatusTranslationKey } from "@/lib/order-status";
+import {
+  type OrderStatus,
+  orderStatusBadgeColors,
+  orderStatusTranslationKey,
+} from "@/lib/order-status";
 
 const statusIcons: Record<string, React.ElementType> = {
   pending: Clock,
@@ -31,14 +34,6 @@ const statusIcons: Record<string, React.ElementType> = {
   out_for_delivery: Truck,
   ready_for_pickup: Store,
   completed: CheckCircle,
-};
-
-const statusColors: Record<string, { color: string; bg: string }> = {
-  pending: { color: "text-amber-700", bg: "bg-amber-100" },
-  preparing: { color: "text-blue-700", bg: "bg-blue-100" },
-  out_for_delivery: { color: "text-purple-700", bg: "bg-purple-100" },
-  ready_for_pickup: { color: "text-teal-800", bg: "bg-teal-100" },
-  completed: { color: "text-emerald-800", bg: "bg-emerald-100" },
 };
 
 interface ProductFormData {
@@ -1266,7 +1261,8 @@ export default function FunctionsPage() {
               <tbody className="divide-y divide-admin-border">
                 {orders.map((order) => {
                   const colors =
-                    statusColors[order.status] ?? statusColors.pending;
+                    orderStatusBadgeColors[order.status as OrderStatus] ??
+                    orderStatusBadgeColors.pending;
                   const Icon =
                     statusIcons[order.status] ?? Clock;
                   const tKey = orderStatusTranslationKey({
