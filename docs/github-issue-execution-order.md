@@ -16,6 +16,7 @@ These are closed or no longer gate other work; kept for context when reading iss
 - **#84** — GitHub org migration  
 - **#57** — Unavailable-today storefront UX (chatbot #29 still references behavior)
 - **#41** — Checkout delivery/pickup, address, cash on delivery; profile saved address
+- **#28** — Customer `/account/orders` Realtime (status + delete sync), live modal status, shared status badge colors with admin (PR #103; optional admin “new order” toast/sound not in scope)
 
 ---
 
@@ -33,7 +34,6 @@ Read **top to bottom**; within a wave, items can run **in parallel** unless a ro
 | **3**       | **#72** *after #49*                | Admin redesign (tabs, search).                                                                                 |
 | **3**       | **#40** *after #74*                | Phone OTP (uses rate limits from #74).                                                                         |
 | **3**       | **#55** *after #74*                | Card payments.                                                                                                 |
-| **3**       | **#28**                            | Realtime new orders (needs Realtime on `orders`; **not** blocked by #49).                                      |
 | **3**       | **#51** *after #66*                | Delivery zones.                                                                                                |
 | **4**       | **#53** *after #40 + #72*          | Customer blacklist (Customers tab + verified phones).                                                          |
 | **4**       | **#52** *after #49 + #72*          | Admin analytics.                                                                                               |
@@ -67,7 +67,6 @@ flowchart TB
     I72["#72 Admin tabs"]
     I40["#40 Phone OTP"]
     I55["#55 Card pay"]
-    I28["#28 Realtime<br/>new orders"]
     I51["#51 Delivery zones"]
   end
 
@@ -96,8 +95,6 @@ flowchart TB
 ```
 
 
-
-**Note:** **#28** has no issue-to-issue blockers; only Supabase Realtime configuration on `orders`. Run it in Wave 3 alongside **#72** / **#40** / **#55** / **#51** as capacity allows.
 
 **Critical paths** (longest chains to key outcomes):
 
