@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   RefreshCw,
   Clock,
@@ -8,31 +8,46 @@ import {
   Package,
   Users,
   Phone,
+  CheckCircle,
+  Store,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
 import { getSupabaseAdminBrowser } from "@/lib/supabase-client-admin";
 import type { Order, Product, Driver } from "@/types/database";
+import type { TranslationKey } from "@/lib/translations";
+import {
+  ORDER_STATUSES,
+  type OrderStatus,
+  type FulfillmentType,
+  adminSelectableStatuses,
+  orderStatusTranslationKey,
+} from "@/lib/order-status";
 
 const statusIcons: Record<string, React.ElementType> = {
   pending: Clock,
   preparing: Package,
   out_for_delivery: Truck,
+  ready_for_pickup: Store,
+  completed: CheckCircle,
 };
 
 const statusColors: Record<string, { color: string; bg: string }> = {
   pending: { color: "text-amber-700", bg: "bg-amber-100" },
   preparing: { color: "text-blue-700", bg: "bg-blue-100" },
   out_for_delivery: { color: "text-purple-700", bg: "bg-purple-100" },
+  ready_for_pickup: { color: "text-teal-800", bg: "bg-teal-100" },
+  completed: { color: "text-emerald-800", bg: "bg-emerald-100" },
 };
 
-const statusTranslationKeys: Record<
-  string,
-  "pending" | "preparing" | "outForDelivery"
-> = {
-  pending: "pending",
-  preparing: "preparing",
-  out_for_delivery: "outForDelivery",
-};
+function adminStatLabelKey(status: OrderStatus): TranslationKey {
+  if (status === "completed") return "adminOrdersFilterCompleted";
+  return orderStatusTranslationKey({
+    status,
+    fulfillment_type: "delivery",
+  });
+}
+
+type OrderListFilter = "all" | "active" | "completed";
 
 export default function AdminDashboard() {
   const { t, locale } = useLanguage();
@@ -48,6 +63,8 @@ export default function AdminDashboard() {
     Record<string, string>
   >({});
   const [flashId, setFlashId] = useState<string | null>(null);
+  const [orderListFilter, setOrderListFilter] =
+    useState<OrderListFilter>("all");
 
   const loadOrders = useCallback(async () => {
     try {
@@ -153,24 +170,34 @@ export default function AdminDashboard() {
 
   async function updateStatus(orderId: string, newStatus: string) {
     try {
-      await fetch(`/api/orders/${orderId}/status`, {
+      const res = await fetch(`/api/orders/${orderId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
+      if (!res.ok) {
+        await loadOrders();
+        return;
+      }
+      const data = (await res.json()) as Order;
       setOrders((prev) =>
-        prev.map((o) =>
-          o.id === orderId
-            ? { ...o, status: newStatus as Order["status"] }
-            : o
-        )
+        prev.map((o) => (o.id === orderId ? { ...o, ...data } : o))
       );
       setFlashId(orderId);
       setTimeout(() => setFlashId(null), 3000);
     } catch (err) {
       console.error("Failed to update status:", err);
+      await loadOrders();
     }
   }
+
+  const filteredOrders = useMemo(() => {
+    if (orderListFilter === "all") return orders;
+    if (orderListFilter === "completed") {
+      return orders.filter((o) => o.status === "completed");
+    }
+    return orders.filter((o) => o.status !== "completed");
+  }, [orders, orderListFilter]);
 
   async function toggleAvailability(product: Product) {
     const next = !product.unavailable_today;
@@ -210,7 +237,6 @@ export default function AdminDashboard() {
     }
   }
 
-  const statusKeys = ["pending", "preparing", "out_for_delivery"] as const;
   const showLoadBanner =
     ordersFetchFailed ||
     productsFetchFailed ||
@@ -262,12 +288,12 @@ export default function AdminDashboard() {
       ) : null}
 
       {/* Stats */}
-      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {statusKeys.map((key) => {
+      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        {ORDER_STATUSES.map((key) => {
           const count = orders.filter((o) => o.status === key).length;
           const Icon = statusIcons[key];
           const colors = statusColors[key];
-          const tKey = statusTranslationKeys[key];
+          const statKey = adminStatLabelKey(key);
           return (
             <div
               key={key}
@@ -280,7 +306,7 @@ export default function AdminDashboard() {
                   <Icon className={`h-4 w-4 ${colors.color}`} />
                 </div>
                 <span className="text-sm font-semibold text-admin-muted">
-                  {t(tKey)}
+                  {t(statKey)}
                 </span>
               </div>
               <p className="mt-3 font-display text-3xl font-bold text-admin-ink">
@@ -292,6 +318,35 @@ export default function AdminDashboard() {
       </div>
 
       {/* Orders table */}
+      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <p className="text-sm font-semibold text-admin-muted">
+          {t("adminOrdersFilterLabel")}
+        </p>
+        <div
+          className="flex flex-wrap gap-2"
+          role="group"
+          aria-label={t("adminOrdersFilterLabel")}
+        >
+          {(["all", "active", "completed"] as OrderListFilter[]).map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setOrderListFilter(f)}
+              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                orderListFilter === f
+                  ? "border-admin-ink bg-admin-ink text-white"
+                  : "border-admin-border bg-admin-panel text-admin-ink hover:bg-[rgba(31,68,60,0.05)]"
+              }`}
+            >
+              {f === "all"
+                ? t("adminOrdersFilterAll")
+                : f === "active"
+                  ? t("adminOrdersFilterActive")
+                  : t("adminOrdersFilterCompleted")}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="overflow-hidden rounded-xl border border-admin-border bg-admin-panel shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -327,12 +382,22 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-admin-border">
-              {orders.map((order) => {
+              {filteredOrders.map((order) => {
+                const fulfillment: FulfillmentType =
+                  (order.fulfillment_type ?? "delivery") === "pickup"
+                    ? "pickup"
+                    : "delivery";
                 const colors =
                   statusColors[order.status] ?? statusColors.pending;
                 const Icon = statusIcons[order.status] ?? Clock;
-                const tKey =
-                  statusTranslationKeys[order.status] ?? "pending";
+                const tKey = orderStatusTranslationKey({
+                  status: order.status as OrderStatus,
+                  fulfillment_type: order.fulfillment_type,
+                });
+                const selectable = adminSelectableStatuses({
+                  current: order.status as OrderStatus,
+                  fulfillment: fulfillment,
+                });
                 return (
                   <tr
                     key={order.id}
@@ -386,16 +451,22 @@ export default function AdminDashboard() {
                     <td className="px-4 py-3">
                       <select
                         value={order.status}
+                        disabled={order.status === "completed"}
                         onChange={(e) =>
-                          updateStatus(order.id, e.target.value)
+                          void updateStatus(order.id, e.target.value)
                         }
-                        className="admin-input max-w-[11rem] px-2 py-1.5 text-xs"
+                        className="admin-input max-w-[13rem] px-2 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-70"
                       >
-                        <option value="pending">{t("pending")}</option>
-                        <option value="preparing">{t("preparing")}</option>
-                        <option value="out_for_delivery">
-                          {t("outForDelivery")}
-                        </option>
+                        {selectable.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {t(
+                              orderStatusTranslationKey({
+                                status: opt,
+                                fulfillment_type: order.fulfillment_type,
+                              })
+                            )}
+                          </option>
+                        ))}
                       </select>
                     </td>
                   </tr>
@@ -421,6 +492,21 @@ export default function AdminDashboard() {
                   </td>
                 </tr>
               )}
+              {orders.length > 0 &&
+                filteredOrders.length === 0 &&
+                !loading &&
+                !ordersFetchFailed && (
+                  <tr>
+                    <td
+                      colSpan={9}
+                      className="px-4 py-12 text-center text-admin-muted"
+                    >
+                      {orderListFilter === "completed"
+                        ? t("adminNoCompletedOrders")
+                        : t("adminNoActiveOrders")}
+                    </td>
+                  </tr>
+                )}
             </tbody>
           </table>
         </div>

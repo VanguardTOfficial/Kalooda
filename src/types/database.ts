@@ -31,7 +31,12 @@ export interface Order {
   customer_phone: string | null;
   items: OrderItem[];
   total_price: number;
-  status: "pending" | "preparing" | "out_for_delivery";
+  status:
+    | "pending"
+    | "preparing"
+    | "out_for_delivery"
+    | "ready_for_pickup"
+    | "completed";
   created_at: string;
   delivery_token: string;
   /** Present after checkout fulfillment migration; treat missing as delivery. */

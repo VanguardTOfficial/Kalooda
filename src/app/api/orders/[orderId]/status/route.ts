@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-server";
 import { requireRole, isAuthorized } from "@/lib/require-role";
+import {
+  ORDER_STATUSES,
+  type OrderStatus,
+  type FulfillmentType,
+  canAdminSetStatus,
+  canTokenSetStatus,
+} from "@/lib/order-status";
+
+function isOrderStatus(value: unknown): value is OrderStatus {
+  return (
+    typeof value === "string" &&
+    (ORDER_STATUSES as readonly string[]).includes(value)
+  );
+}
 
 export async function PATCH(
   req: NextRequest,
@@ -8,27 +22,48 @@ export async function PATCH(
 ) {
   try {
     const { orderId } = await params;
-    const { status } = await req.json();
+    const body = await req.json();
+    const status = body?.status;
     const token = req.nextUrl.searchParams.get("token");
 
-    const validStatuses = ["pending", "preparing", "out_for_delivery"];
-    if (!validStatuses.includes(status)) {
+    if (!isOrderStatus(status)) {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
-    if (token) {
-      const { data: order } = await supabaseAdmin
-        .from("orders")
-        .select("delivery_token")
-        .eq("id", orderId)
-        .single();
+    const { data: order, error: fetchErr } = await supabaseAdmin
+      .from("orders")
+      .select("id, delivery_token, status, fulfillment_type")
+      .eq("id", orderId)
+      .maybeSingle();
 
-      if (!order || order.delivery_token !== token) {
+    if (fetchErr) throw fetchErr;
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    const from = order.status as OrderStatus;
+    const fulfillment: FulfillmentType =
+      order.fulfillment_type === "pickup" ? "pickup" : "delivery";
+
+    if (token) {
+      if (!order.delivery_token || order.delivery_token !== token) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      if (!canTokenSetStatus(from, status)) {
+        return NextResponse.json(
+          { error: "Invalid status transition" },
+          { status: 400 }
+        );
       }
     } else {
       const authResult = await requireRole(req, ["admin", "super_admin"]);
       if (!isAuthorized(authResult)) return authResult;
+      if (!canAdminSetStatus({ from, to: status, fulfillment })) {
+        return NextResponse.json(
+          { error: "Invalid status transition" },
+          { status: 400 }
+        );
+      }
     }
 
     const { data, error } = await supabaseAdmin

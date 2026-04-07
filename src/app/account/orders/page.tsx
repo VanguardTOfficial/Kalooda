@@ -7,16 +7,11 @@ import { CartDrawer } from "@/components/cart-drawer";
 import { AccountSubnav } from "@/components/account-subnav";
 import { OrderDetailModal } from "@/components/order-detail-modal";
 import type { Order } from "@/types/database";
-import type { TranslationKey } from "@/lib/translations";
 import { ArrowLeft, Loader2, ClipboardList } from "lucide-react";
 import Link from "next/link";
 import { useCartDrawerEvent } from "@/hooks/use-cart-drawer-event";
-
-const STATUS_KEY: Record<Order["status"], TranslationKey> = {
-  pending: "pending",
-  preparing: "preparing",
-  out_for_delivery: "outForDelivery",
-};
+import type { OrderStatus } from "@/lib/order-status";
+import { orderStatusTranslationKey } from "@/lib/order-status";
 
 export default function AccountOrdersPage() {
   const { t } = useLanguage();
@@ -101,7 +96,12 @@ export default function AccountOrdersPage() {
                     </p>
                   </div>
                   <span className="shrink-0 rounded-full border border-[#D3A94C]/30 bg-[#FFF8E6] px-3 py-1 text-xs font-bold uppercase tracking-wide text-[#946E2A]">
-                    {t(STATUS_KEY[o.status])}
+                    {t(
+                      orderStatusTranslationKey({
+                        status: o.status as OrderStatus,
+                        fulfillment_type: o.fulfillment_type,
+                      })
+                    )}
                   </span>
                 </div>
                 <p className="mt-4 font-display text-xl font-bold text-primary-dark">
