@@ -4,15 +4,10 @@ import { useEffect, useState, useCallback } from "react";
 import { useLanguage } from "@/contexts/language-context";
 import { useCart } from "@/contexts/cart-context";
 import type { Order, OrderItem } from "@/types/database";
-import type { TranslationKey } from "@/lib/translations";
 import Image from "next/image";
 import { X, Loader2, ShoppingBag } from "lucide-react";
-
-const STATUS_KEY: Record<Order["status"], TranslationKey> = {
-  pending: "pending",
-  preparing: "preparing",
-  out_for_delivery: "outForDelivery",
-};
+import type { OrderStatus } from "@/lib/order-status";
+import { orderStatusTranslationKey } from "@/lib/order-status";
 
 interface Props {
   orderId: string | null;
@@ -145,7 +140,12 @@ export function OrderDetailModal({ orderId, onClose }: Props) {
                   </p>
                 </div>
                 <span className="shrink-0 rounded-full border border-[#D3A94C]/30 bg-[#FFF8E6] px-3 py-1 text-xs font-bold uppercase tracking-wide text-[#946E2A]">
-                  {t(STATUS_KEY[order.status])}
+                  {t(
+                    orderStatusTranslationKey({
+                      status: order.status as OrderStatus,
+                      fulfillment_type: order.fulfillment_type,
+                    })
+                  )}
                 </span>
               </div>
 

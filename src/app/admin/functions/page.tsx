@@ -13,6 +13,8 @@ import {
   Truck,
   ClipboardList,
   Tag,
+  CheckCircle,
+  Store,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
 import type { Product, Category, Driver, Order } from "@/types/database";
@@ -20,26 +22,23 @@ import { CatalogImageField } from "@/components/admin/catalog-image-field";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
 import { InlineBanner, inlineBannerErrorTextClassName } from "@/components/inline-banner";
 import { adminUiReducer, initialAdminUiState } from "./admin-ui-reducer";
+import type { OrderStatus } from "@/lib/order-status";
+import { orderStatusTranslationKey } from "@/lib/order-status";
 
 const statusIcons: Record<string, React.ElementType> = {
   pending: Clock,
   preparing: Package,
   out_for_delivery: Truck,
+  ready_for_pickup: Store,
+  completed: CheckCircle,
 };
 
 const statusColors: Record<string, { color: string; bg: string }> = {
   pending: { color: "text-amber-700", bg: "bg-amber-100" },
   preparing: { color: "text-blue-700", bg: "bg-blue-100" },
   out_for_delivery: { color: "text-purple-700", bg: "bg-purple-100" },
-};
-
-const statusTranslationKeys: Record<
-  string,
-  "pending" | "preparing" | "outForDelivery"
-> = {
-  pending: "pending",
-  preparing: "preparing",
-  out_for_delivery: "outForDelivery",
+  ready_for_pickup: { color: "text-teal-800", bg: "bg-teal-100" },
+  completed: { color: "text-emerald-800", bg: "bg-emerald-100" },
 };
 
 interface ProductFormData {
@@ -1270,8 +1269,10 @@ export default function FunctionsPage() {
                     statusColors[order.status] ?? statusColors.pending;
                   const Icon =
                     statusIcons[order.status] ?? Clock;
-                  const tKey =
-                    statusTranslationKeys[order.status] ?? "pending";
+                  const tKey = orderStatusTranslationKey({
+                    status: order.status as OrderStatus,
+                    fulfillment_type: order.fulfillment_type,
+                  });
                   return (
                     <tr key={order.id}>
                       <td className="px-4 py-3 font-semibold text-admin-ink">
