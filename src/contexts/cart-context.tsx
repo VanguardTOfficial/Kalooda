@@ -12,6 +12,11 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 import { GUEST_CART_KEY } from "@/lib/guest-cart-constants";
 import type { Product, CartItem } from "@/types/database";
+import {
+  applyProductChangeToCartItems,
+  broadcastPayloadToPostgresShape,
+} from "@/lib/realtime-products";
+import { subscribeStorefrontCatalog } from "@/lib/storefront-catalog-realtime";
 
 interface CartContextType {
   items: CartItem[];
@@ -285,6 +290,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [authLoading, user?.id, clearDebounce]);
+
+  useEffect(() => {
+    return subscribeStorefrontCatalog((event) => {
+      const payload =
+        event.type === "postgres"
+          ? event.payload
+          : broadcastPayloadToPostgresShape(event.data);
+      if (!payload) return;
+
+      setItems((prev) => {
+        const next = applyProductChangeToCartItems(prev, payload);
+        if (next === prev) return prev;
+        itemsRef.current = next;
+        queueMicrotask(() => schedulePersist());
+        return next;
+      });
+    });
+  }, [schedulePersist]);
 
   const addItem = useCallback(
     (product: Product) => {

@@ -18,6 +18,11 @@ import {
   CHEF_SELECTIONS_COUNT,
 } from "@/lib/storefront-home-helpers";
 import type { Category, Product } from "@/types/database";
+import {
+  broadcastPayloadToPostgresShape,
+  mergeProductChangeIntoList,
+} from "@/lib/realtime-products";
+import { subscribeStorefrontCatalog } from "@/lib/storefront-catalog-realtime";
 
 export default function HomePage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -31,16 +36,36 @@ export default function HomePage() {
   useCartDrawerEvent(setCartOpen);
 
   useEffect(() => {
+    const unsub = subscribeStorefrontCatalog((event) => {
+      setProducts((prev) => {
+        const payload =
+          event.type === "postgres"
+            ? event.payload
+            : broadcastPayloadToPostgresShape(event.data);
+        if (!payload) return prev;
+        return mergeProductChangeIntoList(prev, payload);
+      });
+    });
+
+    let cancelled = false;
     Promise.all([
       fetch("/api/categories").then((r) => r.json()),
       fetch("/api/products").then((r) => r.json()),
     ])
       .then(([cats, prods]) => {
+        if (cancelled) return;
         setCategories(cats);
         setProducts(prods);
       })
       .catch((err) => console.error("Failed to load data:", err))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, []);
 
   const available = useMemo(
