@@ -20,6 +20,7 @@ import {
   type OrderStatus,
   type FulfillmentType,
   adminSelectableStatuses,
+  orderStatusBadgeColors,
   orderStatusTranslationKey,
 } from "@/lib/order-status";
 
@@ -29,14 +30,6 @@ const statusIcons: Record<string, React.ElementType> = {
   out_for_delivery: Truck,
   ready_for_pickup: Store,
   completed: CheckCircle,
-};
-
-const statusColors: Record<string, { color: string; bg: string }> = {
-  pending: { color: "text-amber-700", bg: "bg-amber-100" },
-  preparing: { color: "text-blue-700", bg: "bg-blue-100" },
-  out_for_delivery: { color: "text-purple-700", bg: "bg-purple-100" },
-  ready_for_pickup: { color: "text-teal-800", bg: "bg-teal-100" },
-  completed: { color: "text-emerald-800", bg: "bg-emerald-100" },
 };
 
 function adminStatLabelKey(status: OrderStatus): TranslationKey {
@@ -292,7 +285,7 @@ export default function AdminDashboard() {
         {ORDER_STATUSES.map((key) => {
           const count = orders.filter((o) => o.status === key).length;
           const Icon = statusIcons[key];
-          const colors = statusColors[key];
+          const colors = orderStatusBadgeColors[key];
           const statKey = adminStatLabelKey(key);
           return (
             <div
@@ -388,7 +381,8 @@ export default function AdminDashboard() {
                     ? "pickup"
                     : "delivery";
                 const colors =
-                  statusColors[order.status] ?? statusColors.pending;
+                  orderStatusBadgeColors[order.status as OrderStatus] ??
+                  orderStatusBadgeColors.pending;
                 const Icon = statusIcons[order.status] ?? Clock;
                 const tKey = orderStatusTranslationKey({
                   status: order.status as OrderStatus,
