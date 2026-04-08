@@ -47,20 +47,31 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    // Fallback: listen for PASSWORD_RECOVERY (e.g. PKCE flow)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event: string) => {
-        if (event === "PASSWORD_RECOVERY") setReady(true);
+    // PKCE flow: session already set by server-side callback — check for existing session
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setReady(true);
+        return;
       }
-    );
 
-    // No token in hash — mark invalid after short delay
-    const timeout = setTimeout(() => setInvalid(true), 2000);
+      // Fallback: listen for PASSWORD_RECOVERY event
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        (event: string) => {
+          if (event === "PASSWORD_RECOVERY") setReady(true);
+        }
+      );
 
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timeout);
+      // No session and no event — mark invalid after short delay
+      const timeout = setTimeout(() => setInvalid(true), 2000);
+
+      return () => {
+        subscription.unsubscribe();
+        clearTimeout(timeout);
+      };
     };
+
+    void checkSession();
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
