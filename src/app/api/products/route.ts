@@ -34,7 +34,6 @@ export async function POST(req: NextRequest) {
       description,
       description_ar,
       price,
-      stock_quantity,
       ingredients,
       ingredients_ar,
       allergens,
@@ -57,7 +56,6 @@ export async function POST(req: NextRequest) {
         description: description?.trim() || null,
         description_ar: description_ar?.trim() || null,
         price: Number(price) || 0,
-        stock_quantity: Number(stock_quantity) || 0,
         ingredients: ingredients?.trim() || null,
         ingredients_ar: ingredients_ar?.trim() || null,
         allergens: allergens ?? [],
@@ -106,8 +104,6 @@ export async function PUT(req: NextRequest) {
     if (fields.description_ar !== undefined)
       update.description_ar = fields.description_ar?.trim() || null;
     if (fields.price !== undefined) update.price = Number(fields.price) || 0;
-    if (fields.stock_quantity !== undefined)
-      update.stock_quantity = Number(fields.stock_quantity) || 0;
     if (fields.ingredients !== undefined)
       update.ingredients = fields.ingredients?.trim() || null;
     if (fields.ingredients_ar !== undefined)
