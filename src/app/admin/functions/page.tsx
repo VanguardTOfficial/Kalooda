@@ -31,7 +31,6 @@ interface ProductFormData {
   ingredients: string;
   ingredients_ar: string;
   price: string;
-  stock_quantity: string;
   allergens: string;
   allergens_ar: string;
   image_url: string;
@@ -46,7 +45,6 @@ const emptyForm: ProductFormData = {
   ingredients: "",
   ingredients_ar: "",
   price: "",
-  stock_quantity: "",
   allergens: "",
   allergens_ar: "",
   image_url: "",
@@ -62,7 +60,6 @@ function productToForm(p: Product): ProductFormData {
     ingredients: p.ingredients ?? "",
     ingredients_ar: p.ingredients_ar ?? "",
     price: String(p.price),
-    stock_quantity: String(p.stock_quantity),
     allergens: p.allergens.join(", "),
     allergens_ar: (p.allergens_ar ?? []).join(", "),
     image_url: p.image_url ?? "",
@@ -99,7 +96,6 @@ function formToPayload(form: ProductFormData) {
     ingredients: form.ingredients || null,
     ingredients_ar: form.ingredients_ar || null,
     price: Number(form.price) || 0,
-    stock_quantity: Number(form.stock_quantity) || 0,
     allergens: form.allergens
       ? form.allergens.split(",").map((s) => s.trim()).filter(Boolean)
       : [],
@@ -767,12 +763,6 @@ export default function FunctionsPage() {
                     onChange={(v) => updateField("price", v)}
                     type="number"
                     required
-                  />
-                  <Field
-                    label={t("stockQuantity")}
-                    value={form.stock_quantity}
-                    onChange={(v) => updateField("stock_quantity", v)}
-                    type="number"
                   />
                 </div>
 

@@ -12,7 +12,6 @@ export interface Product {
   name: string;
   description: string;
   price: number;
-  stock_quantity: number;
   ingredients: string;
   allergens: string[];
   image_url: string;

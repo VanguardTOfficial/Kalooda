@@ -97,7 +97,6 @@ export function OrderDetailModal({
         price: item.unit_price,
         category_id: "",
         description: "",
-        stock_quantity: 99,
         ingredients: "",
         allergens: [],
         allergens_ar: null,

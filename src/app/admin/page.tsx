@@ -11,6 +11,8 @@ import {
   Phone,
   XCircle,
   X,
+  Search,
+  Eye,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
 import { getSupabaseAdminBrowser } from "@/lib/supabase-client-admin";
@@ -115,6 +117,8 @@ export default function AdminDashboard() {
     new Set(DEFAULT_ACTIVE_PILLS)
   );
   const [ordersVisible, setOrdersVisible] = useState(PAGE_SIZE);
+  const [ordersQuery, setOrdersQuery] = useState("");
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   // Cancel modal
   const [cancelOrder, setCancelOrder] = useState<Order | null>(null);
@@ -127,8 +131,10 @@ export default function AdminDashboard() {
   const [customers, setCustomers] = useState<Profile[]>([]);
   const [customersLoading, setCustomersLoading] = useState(false);
   const [customersFetchFailed, setCustomersFetchFailed] = useState(false);
+  const [customersNotice, setCustomersNotice] = useState<string | null>(null);
   const customersLoaded = useRef(false);
   const [customersVisible, setCustomersVisible] = useState(PAGE_SIZE);
+  const [customersQuery, setCustomersQuery] = useState("");
 
   // --- Products (availability only) ---
   const [products, setProducts] = useState<Product[]>([]);
@@ -390,6 +396,18 @@ export default function AdminDashboard() {
   }
 
   const filteredOrders = orders.filter((o) => {
+    const normalizedQuery = ordersQuery.trim().toLowerCase();
+    if (normalizedQuery) {
+      const orderId = o.display_id.toLowerCase();
+      const customerName = (o.customer_name ?? "").toLowerCase();
+      const customerPhone = (o.customer_phone ?? "").toLowerCase();
+      const queryMatch =
+        orderId.includes(normalizedQuery) ||
+        customerName.includes(normalizedQuery) ||
+        customerPhone.includes(normalizedQuery);
+      if (!queryMatch) return false;
+    }
+
     const ft: FulfillmentType =
       (o.fulfillment_type ?? "delivery") === "pickup" ? "pickup" : "delivery";
     if (o.status === "cancelled") return activePills.has("cancelled");
@@ -402,9 +420,17 @@ export default function AdminDashboard() {
   });
 
   const visibleOrders = filteredOrders.slice(0, ordersVisible);
-  const visibleCustomers = customers.slice(0, customersVisible);
+  const filteredCustomers = customers.filter((customer) => {
+    const normalizedQuery = customersQuery.trim().toLowerCase();
+    if (!normalizedQuery) return true;
+    const name = (customer.full_name ?? "").toLowerCase();
+    const phone = (customer.phone ?? "").toLowerCase();
+    return name.includes(normalizedQuery) || phone.includes(normalizedQuery);
+  });
+  const visibleCustomers = filteredCustomers.slice(0, customersVisible);
   const visibleProducts = products.slice(0, productsVisible);
   const visibleDrivers = drivers.slice(0, driversVisible);
+  const selectedOrder = orders.find((order) => order.id === selectedOrderId) ?? null;
 
   const tabs: { key: AdminTab; label: string }[] = [
     { key: "orders", label: t("orders") },
@@ -521,6 +547,103 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* Order details modal */}
+      {selectedOrder && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal
+          aria-labelledby="order-details-title"
+        >
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-admin-border bg-admin-panel p-6 shadow-lg">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 id="order-details-title" className="font-semibold text-admin-ink">
+                {t("orderDetails")} — {selectedOrder.display_id}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setSelectedOrderId(null)}
+                className="rounded-lg p-1 text-admin-muted hover:bg-[rgba(31,68,60,0.06)]"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mb-4 grid gap-3 rounded-lg border border-admin-border bg-[#1F443C]/[0.03] p-4 text-sm sm:grid-cols-2">
+              <p className="text-admin-muted">
+                <span className="font-semibold text-admin-ink">{t("customer")}:</span>{" "}
+                {selectedOrder.customer_name}
+              </p>
+              <p className="text-admin-muted">
+                <span className="font-semibold text-admin-ink">{t("phone")}:</span>{" "}
+                {selectedOrder.customer_phone ?? "—"}
+              </p>
+              <p className="text-admin-muted">
+                <span className="font-semibold text-admin-ink">{t("status")}:</span>{" "}
+                {selectedOrder.status === "cancelled"
+                  ? t("cancelled")
+                  : t(
+                      orderStatusTranslationKey({
+                        status: selectedOrder.status as OrderStatus,
+                        fulfillment_type: selectedOrder.fulfillment_type,
+                      })
+                    )}
+              </p>
+              <p className="text-admin-muted">
+                <span className="font-semibold text-admin-ink">{t("total")}:</span> ₪
+                {selectedOrder.total_price.toFixed(2)}
+              </p>
+              <p className="sm:col-span-2 text-admin-muted">
+                <span className="font-semibold text-admin-ink">{t("adminFulfillment")}:</span>{" "}
+                {(selectedOrder.fulfillment_type ?? "delivery") === "pickup"
+                  ? t("fulfillmentPickup")
+                  : t("fulfillmentDelivery")}
+              </p>
+              {(selectedOrder.fulfillment_type ?? "delivery") === "delivery" &&
+                selectedOrder.delivery_address && (
+                  <p className="sm:col-span-2 text-admin-muted">
+                    <span className="font-semibold text-admin-ink">
+                      {t("adminDeliveryAddress")}:
+                    </span>{" "}
+                    {selectedOrder.delivery_address}
+                  </p>
+                )}
+            </div>
+            <div className="rounded-lg border border-admin-border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="admin-table-head text-start">
+                    <th className="px-4 py-2 text-start font-semibold text-admin-muted">
+                      {t("items")}
+                    </th>
+                    <th className="px-4 py-2 text-start font-semibold text-admin-muted">
+                      {t("qty")}
+                    </th>
+                    <th className="px-4 py-2 text-start font-semibold text-admin-muted">
+                      {t("subtotal")}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-admin-border">
+                  {selectedOrder.items.map((item, index) => (
+                    <tr key={`${item.product_id}-${index}`}>
+                      <td className="px-4 py-2 text-admin-ink">
+                        {locale === "ar" && item.product_name_ar
+                          ? item.product_name_ar
+                          : item.product_name}
+                      </td>
+                      <td className="px-4 py-2 text-admin-muted">{item.quantity}</td>
+                      <td className="px-4 py-2 text-admin-muted">
+                        ₪{(item.unit_price * item.quantity).toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-bold text-admin-ink">
@@ -561,6 +684,24 @@ export default function AdminDashboard() {
       {/* ── Orders tab ── */}
       {activeTab === "orders" && (
         <div>
+          <div className="mb-4">
+            <label className="mb-1 block text-xs font-medium text-admin-muted">
+              {t("searchOrders")}
+            </label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute inset-y-0 left-3 my-auto h-4 w-4 text-admin-muted/70" />
+              <input
+                type="text"
+                value={ordersQuery}
+                onChange={(e) => {
+                  setOrdersQuery(e.target.value);
+                  setOrdersVisible(PAGE_SIZE);
+                }}
+                placeholder={t("searchOrdersPlaceholder")}
+                className="admin-input ps-9"
+              />
+            </div>
+          </div>
           {/* Fixed status filter pills */}
           <div className="mb-4 flex flex-wrap gap-2">
             {STATUS_PILLS.map((pill) => {
@@ -730,6 +871,14 @@ export default function AdminDashboard() {
                                 {t("cancelOrder")}
                               </button>
                             )}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedOrderId(order.id)}
+                              className="inline-flex w-fit items-center gap-1 rounded-lg border border-admin-border px-2.5 py-1.5 text-xs font-medium text-admin-ink transition-colors hover:bg-[rgba(31,68,60,0.06)]"
+                            >
+                              <Eye className="h-3 w-3" />
+                              {t("viewDetails")}
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -778,6 +927,24 @@ export default function AdminDashboard() {
       {/* ── Customers tab ── */}
       {activeTab === "customers" && (
         <div>
+          <div className="mb-4">
+            <label className="mb-1 block text-xs font-medium text-admin-muted">
+              {t("searchCustomers")}
+            </label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute inset-y-0 left-3 my-auto h-4 w-4 text-admin-muted/70" />
+              <input
+                type="text"
+                value={customersQuery}
+                onChange={(e) => {
+                  setCustomersQuery(e.target.value);
+                  setCustomersVisible(PAGE_SIZE);
+                }}
+                placeholder={t("searchCustomersPlaceholder")}
+                className="admin-input ps-9"
+              />
+            </div>
+          </div>
           {customersFetchFailed && (
             <div className="mb-4 flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-950 sm:flex-row sm:items-center sm:justify-between">
               <p className="font-medium">{t("customersLoadFailed")}</p>
@@ -793,6 +960,13 @@ export default function AdminDashboard() {
               </button>
             </div>
           )}
+          {customersNotice && (
+            <div className="mb-4">
+              <InlineBanner variant="warning">
+                <p>{customersNotice}</p>
+              </InlineBanner>
+            </div>
+          )}
           <div className="overflow-hidden rounded-xl border border-admin-border bg-admin-panel shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -801,6 +975,8 @@ export default function AdminDashboard() {
                     <th className="px-4 py-3 text-start font-semibold text-admin-muted">{t("name")}</th>
                     <th className="px-4 py-3 text-start font-semibold text-admin-muted">{t("phone")}</th>
                     <th className="px-4 py-3 text-start font-semibold text-admin-muted">{t("language")}</th>
+                    <th className="px-4 py-3 text-start font-semibold text-admin-muted">{t("orderHistory")}</th>
+                    <th className="px-4 py-3 text-start font-semibold text-admin-muted">{t("actions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-admin-border">
@@ -818,27 +994,62 @@ export default function AdminDashboard() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-admin-muted">{c.preferred_language ?? "—"}</td>
+                      <td className="px-4 py-3 text-admin-muted">
+                        <p className="mb-1 text-xs font-semibold text-admin-ink">
+                          {t("customerOrdersLabel")}: {c.order_count ?? 0}
+                        </p>
+                        {c.recent_orders && c.recent_orders.length > 0 ? (
+                          <div className="space-y-1 text-xs">
+                            {c.recent_orders.map((order) => (
+                              <div key={order.id} className="flex items-center gap-2">
+                                <span className="font-medium text-admin-ink">{order.display_id}</span>
+                                <span className="text-admin-muted">₪{order.total_price.toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-admin-muted/70">{t("noOrders")}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => setCustomersNotice(t("blacklistComingSoon"))}
+                          className="inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100"
+                        >
+                          {t("blacklistCustomer")}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                   {customersLoading && (
                     <tr>
-                      <td colSpan={3} className="px-4 py-12 text-center text-admin-muted">
+                      <td colSpan={5} className="px-4 py-12 text-center text-admin-muted">
                         <RefreshCw className="mx-auto h-5 w-5 animate-spin opacity-50" />
                       </td>
                     </tr>
                   )}
                   {!customersLoading && customers.length === 0 && !customersFetchFailed && (
                     <tr>
-                      <td colSpan={3} className="px-4 py-12 text-center text-admin-muted">
+                      <td colSpan={5} className="px-4 py-12 text-center text-admin-muted">
                         {t("noCustomers")}
                       </td>
                     </tr>
                   )}
+                  {!customersLoading &&
+                    customers.length > 0 &&
+                    filteredCustomers.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-12 text-center text-admin-muted">
+                          {t("noCustomersMatchSearch")}
+                        </td>
+                      </tr>
+                    )}
                 </tbody>
               </table>
             </div>
           </div>
-          {customers.length > customersVisible && (
+          {filteredCustomers.length > customersVisible && (
             <div className="mt-4 flex justify-center">
               <button
                 type="button"
