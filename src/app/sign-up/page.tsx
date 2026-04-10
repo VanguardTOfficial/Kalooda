@@ -44,9 +44,17 @@ function SignUpContent() {
   const [error, setError] = useState<SignUpErrorState>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const ISRAELI_MOBILE_RE = /^\+9725\d{8}$/;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (phone && !ISRAELI_MOBILE_RE.test(phone)) {
+      setError({ variant: "text", text: t("phoneInvalidFormat") });
+      return;
+    }
+
     setSubmitting(true);
     const err = await signUp(email, password, fullName, phone);
     if (err) {
