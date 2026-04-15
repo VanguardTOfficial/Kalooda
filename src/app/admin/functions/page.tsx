@@ -14,6 +14,7 @@ import {
   Percent,
   Search,
   Layers,
+  MapPinned,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
 import type { Product, Category, Driver } from "@/types/database";
@@ -26,7 +27,13 @@ import { ProductOptionsTab } from "@/components/admin/products/product-options-t
 
 const PAGE_SIZE = 10;
 
-type FunctionsTab = "products" | "categories" | "drivers" | "sales" | "options";
+type FunctionsTab =
+  | "products"
+  | "categories"
+  | "drivers"
+  | "sales"
+  | "options"
+  | "delivery_zones";
 
 type SaleDiscountType = "amount" | "percentage";
 type SaleProductMapping = {
@@ -44,6 +51,13 @@ type SaleRecord = {
   default_value: number;
   default_type: SaleDiscountType;
   sale_products: SaleProductMapping[];
+};
+
+type DeliveryZoneRecord = {
+  id: string;
+  name_en: string;
+  name_ar: string;
+  is_active: boolean;
 };
 
 interface ProductFormData {
@@ -194,6 +208,9 @@ export default function FunctionsPage() {
   >({});
   const [saleFormError, setSaleFormError] = useState<string | null>(null);
   const [saleSaving, setSaleSaving] = useState(false);
+  const [deliveryZones, setDeliveryZones] = useState<DeliveryZoneRecord[]>([]);
+  const [deliveryZonesLoading, setDeliveryZonesLoading] = useState(false);
+  const [deliveryZonesError, setDeliveryZonesError] = useState<string | null>(null);
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -246,6 +263,31 @@ export default function FunctionsPage() {
     }
   }, []);
 
+  const fetchDeliveryZones = useCallback(async () => {
+    setDeliveryZonesLoading(true);
+    setDeliveryZonesError(null);
+    try {
+      const res = await fetch("/api/admin/delivery-zones");
+      const data = (await res.json().catch(() => null)) as
+        | DeliveryZoneRecord[]
+        | { error?: string }
+        | null;
+      if (!res.ok || !Array.isArray(data)) {
+        setDeliveryZonesError(
+          data && !Array.isArray(data) && typeof data.error === "string"
+            ? data.error
+            : t("deliveryZonesLoadFailed")
+        );
+        return;
+      }
+      setDeliveryZones(data);
+    } catch {
+      setDeliveryZonesError(t("deliveryZonesLoadFailed"));
+    } finally {
+      setDeliveryZonesLoading(false);
+    }
+  }, [t]);
+
   useEffect(() => {
     fetchProducts();
     fetchCategories();
@@ -255,6 +297,63 @@ export default function FunctionsPage() {
   function handleTabChange(tab: FunctionsTab) {
     setActiveTab(tab);
     if (tab === "drivers" && !driversLoaded.current) void fetchDrivers();
+    if (tab === "delivery_zones") void fetchDeliveryZones();
+  }
+
+  async function toggleDeliveryZone(zone: DeliveryZoneRecord) {
+    const nextActive = !zone.is_active;
+    setDeliveryZones((prev) =>
+      prev.map((item) =>
+        item.id === zone.id ? { ...item, is_active: nextActive } : item
+      )
+    );
+    setDeliveryZonesError(null);
+    try {
+      const res = await fetch("/api/admin/delivery-zones", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: zone.id, is_active: nextActive }),
+      });
+      const data = (await res.json().catch(() => null)) as
+        | DeliveryZoneRecord
+        | { error?: string }
+        | null;
+      const errorMessage =
+        data &&
+        !Array.isArray(data) &&
+        "error" in data &&
+        typeof data.error === "string"
+          ? data.error
+          : t("deliveryZonesUpdateFailed");
+
+      const isDeliveryZonePayload =
+        data &&
+        !Array.isArray(data) &&
+        "id" in data &&
+        "name_en" in data &&
+        "name_ar" in data &&
+        "is_active" in data;
+
+      if (!res.ok || !isDeliveryZonePayload) {
+        throw new Error(
+          errorMessage
+        );
+      }
+      setDeliveryZones((prev) =>
+        prev.map((item) => (item.id === data.id ? data : item))
+      );
+    } catch (err) {
+      setDeliveryZones((prev) =>
+        prev.map((item) =>
+          item.id === zone.id ? { ...item, is_active: zone.is_active } : item
+        )
+      );
+      setDeliveryZonesError(
+        err instanceof Error && err.message
+          ? err.message
+          : t("deliveryZonesUpdateFailed")
+      );
+    }
   }
 
   // --- Product CRUD handlers ---
@@ -1006,7 +1105,14 @@ export default function FunctionsPage() {
       {/* Tab nav */}
       <div className="mb-6 flex w-fit gap-1 rounded-xl border border-admin-border bg-admin-panel p-1">
         {(
-          ["products", "categories", "sales", "drivers", "options"] as FunctionsTab[]
+          [
+            "products",
+            "categories",
+            "sales",
+            "drivers",
+            "options",
+            "delivery_zones",
+          ] as FunctionsTab[]
         ).map((tab) => (
           <button
             key={tab}
@@ -1026,7 +1132,9 @@ export default function FunctionsPage() {
                   ? t("sales")
                   : tab === "drivers"
                     ? t("drivers")
-                    : t("optionsLibrary")}
+                    : tab === "delivery_zones"
+                      ? t("deliveryZones")
+                      : t("optionsLibrary")}
           </button>
         ))}
       </div>
@@ -1636,6 +1744,67 @@ export default function FunctionsPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Delivery zones ── */}
+      {activeTab === "delivery_zones" && (
+        <section>
+          <div className="mb-4 flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+              <MapPinned className="h-4 w-4 text-primary" />
+            </div>
+            <h2 className="text-lg font-semibold text-admin-ink">{t("deliveryZones")}</h2>
+          </div>
+          {deliveryZonesError ? (
+            <div className="mb-4">
+              <InlineBanner variant="error">
+                <p>{deliveryZonesError}</p>
+              </InlineBanner>
+            </div>
+          ) : null}
+          <p className="mb-4 text-sm text-admin-muted">
+            {t("deliveryZonesHint")}
+          </p>
+          <div className="space-y-3">
+            {deliveryZones.map((zone) => (
+              <div
+                key={zone.id}
+                className="flex items-center justify-between rounded-xl border border-admin-border bg-admin-panel px-4 py-3"
+              >
+                <div>
+                  <p className="font-medium text-admin-ink">
+                    {locale === "ar" ? zone.name_ar : zone.name_en}
+                  </p>
+                  <p className="text-xs text-admin-muted">
+                    {zone.name_en} / {zone.name_ar}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={deliveryZonesLoading}
+                  onClick={() => void toggleDeliveryZone(zone)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    zone.is_active
+                      ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                      : "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                  } disabled:opacity-60`}
+                >
+                  {zone.is_active ? t("zoneActive") : t("zoneInactive")}
+                </button>
+              </div>
+            ))}
+            {!deliveryZonesLoading && deliveryZones.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-admin-border px-4 py-8 text-center text-sm text-admin-muted">
+                {t("noDeliveryZones")}
+              </p>
+            ) : null}
+            {deliveryZonesLoading ? (
+              <div className="py-8 text-center text-admin-muted">
+                <RefreshCw className="mx-auto h-5 w-5 animate-spin opacity-50" />
+              </div>
+            ) : null}
           </div>
         </section>
       )}

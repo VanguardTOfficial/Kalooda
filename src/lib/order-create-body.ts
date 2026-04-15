@@ -25,6 +25,7 @@ export const createOrderBodySchema = z
     customer_address_id: z.string().uuid().nullable().optional(),
     delivery_latitude: z.number().min(-90).max(90).nullable().optional(),
     delivery_longitude: z.number().min(-180).max(180).nullable().optional(),
+    delivery_place_id: z.string().trim().min(1).max(200).nullable().optional(),
     delivery_formatted_address: z.string().trim().min(1).max(500).nullable().optional(),
     payment_method: z.literal("cash_on_delivery").default("cash_on_delivery"),
     save_address_to_profile: z.boolean().optional().default(false),
@@ -60,6 +61,7 @@ export const createOrderBodySchema = z
       customer_address_id: data.customer_address_id ?? null,
       delivery_latitude: fulfillment_type === "pickup" ? null : (data.delivery_latitude ?? null),
       delivery_longitude: fulfillment_type === "pickup" ? null : (data.delivery_longitude ?? null),
+      delivery_place_id: fulfillment_type === "pickup" ? null : (data.delivery_place_id ?? null),
       delivery_formatted_address:
         fulfillment_type === "pickup"
           ? null

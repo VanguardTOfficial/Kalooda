@@ -36,6 +36,11 @@ interface CartContextType {
     quantity?: number
   ) => void;
   removeItem: (lineId: string) => void;
+  editItemOptions: (
+    lineId: string,
+    lineOptions: CartLineOptionsPersisted,
+    quantity: number
+  ) => void;
   updateQuantity: (lineId: string, quantity: number) => void;
   clearCart: () => void;
   clearRemoteCart: () => Promise<void>;
@@ -523,6 +528,52 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [schedulePersist]
   );
 
+  const editItemOptions = useCallback(
+    (lineId: string, lineOptions: CartLineOptionsPersisted, quantity: number) => {
+      setItems((prev) => {
+        const target = prev.find((line) => line.lineId === lineId);
+        if (!target) return prev;
+
+        const normalized = normalizeCartLineOptions(lineOptions, target.product);
+        const nextQuantity = Math.max(1, Math.floor(quantity || 1));
+        const nextKey = configurationKeyFromSelections(normalized.selections);
+        const mergeCandidate = prev.find(
+          (line) =>
+            line.lineId !== lineId &&
+            line.product.id === target.product.id &&
+            configurationKeyFromSelections(line.line_options?.selections ?? {}) ===
+              nextKey
+        );
+
+        let next: CartItem[];
+        if (mergeCandidate) {
+          next = prev
+            .filter((line) => line.lineId !== lineId)
+            .map((line) =>
+              line.lineId === mergeCandidate.lineId
+                ? {
+                    ...line,
+                    quantity: line.quantity + nextQuantity,
+                    line_options: normalized,
+                  }
+                : line
+            );
+        } else {
+          next = prev.map((line) =>
+            line.lineId === lineId
+              ? { ...line, line_options: normalized, quantity: nextQuantity }
+              : line
+          );
+        }
+
+        itemsRef.current = next;
+        queueMicrotask(() => schedulePersist());
+        return next;
+      });
+    },
+    [schedulePersist]
+  );
+
   const updateQuantity = useCallback(
     (lineId: string, quantity: number) => {
       setItems((prev) => {
@@ -562,6 +613,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         addItem,
         addItemWithOptions,
         removeItem,
+        editItemOptions,
         updateQuantity,
         clearCart,
         clearRemoteCart,

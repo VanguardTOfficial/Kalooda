@@ -5,11 +5,17 @@ import {
   createOrderBodySchema,
   ORDER_VALIDATION_ERROR,
 } from "@/lib/order-create-body";
+import {
+  coordinateSchema,
+  isLocationInDeliveryZone,
+} from "@/lib/geofencing/validate-zone";
 import { getActiveSalePricingByProductIds } from "@/lib/sale-pricing";
 import { loadProductOptionsBundlesByProductIds } from "@/lib/load-product-options-bundle";
 import { validateAndBuildOrderLine } from "@/lib/validate-order-line-options";
 
 const ORD_PREFIX = /^ORD-(\d+)$/;
+const DELIVERY_ZONE_BLOCKED_MESSAGE =
+  "We don't deliver to this location yet / نحن لا نوصل لهذا الموقع بعد";
 
 async function nextOrderDisplayId(): Promise<string> {
   const { data: rows, error } = await supabaseAdmin
@@ -24,6 +30,40 @@ async function nextOrderDisplayId(): Promise<string> {
     if (m) maxSeq = Math.max(maxSeq, parseInt(m[1], 10));
   }
   return `ORD-${maxSeq + 1}`;
+}
+
+async function geocodePlaceIdToCoordinates(placeId: string) {
+  const apiKey =
+    process.env.GOOGLE_MAPS_API_KEY ??
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  if (!apiKey) return null;
+
+  const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
+  url.searchParams.set("place_id", placeId);
+  url.searchParams.set("key", apiKey);
+
+  const res = await fetch(url.toString(), {
+    method: "GET",
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+
+  const payload = (await res.json()) as {
+    status?: string;
+    results?: Array<{ geometry?: { location?: { lat?: number; lng?: number } } }>;
+  };
+  if (payload.status !== "OK" || !payload.results?.[0]?.geometry?.location) {
+    return null;
+  }
+
+  const location = payload.results[0].geometry.location;
+  const parsed = coordinateSchema.safeParse({
+    lat: Number(location.lat),
+    lng: Number(location.lng),
+  });
+  if (!parsed.success) return null;
+
+  return parsed.data;
 }
 
 export async function GET(req: NextRequest) {
@@ -89,8 +129,51 @@ export async function POST(req: NextRequest) {
         `${selectedAddress.city}, ${selectedAddress.street_line}, ${selectedAddress.building_number}`;
       body.delivery_address = normalizedAddress;
       body.delivery_formatted_address = normalizedAddress;
-      body.delivery_latitude = Number(selectedAddress.latitude);
-      body.delivery_longitude = Number(selectedAddress.longitude);
+      body.delivery_latitude =
+        selectedAddress.latitude != null ? Number(selectedAddress.latitude) : null;
+      body.delivery_longitude =
+        selectedAddress.longitude != null ? Number(selectedAddress.longitude) : null;
+    }
+
+    if (body.fulfillment_type === "delivery") {
+      let coords = coordinateSchema.safeParse({
+        lat: body.delivery_latitude,
+        lng: body.delivery_longitude,
+      });
+
+      if (!coords.success && body.delivery_place_id) {
+        const resolved = await geocodePlaceIdToCoordinates(body.delivery_place_id);
+        if (resolved) {
+          body.delivery_latitude = resolved.lat;
+          body.delivery_longitude = resolved.lng;
+          coords = coordinateSchema.safeParse(resolved);
+        }
+      }
+
+      if (!coords.success) {
+        return NextResponse.json(
+          {
+            error: "Delivery coordinates are required",
+            code: ORDER_VALIDATION_ERROR,
+            detail: "MISSING_DELIVERY_COORDINATES",
+          },
+          { status: 400 }
+        );
+      }
+
+      const inDeliveryZone = await isLocationInDeliveryZone(
+        coords.data.lat,
+        coords.data.lng
+      );
+      if (!inDeliveryZone) {
+        return NextResponse.json(
+          {
+            error: DELIVERY_ZONE_BLOCKED_MESSAGE,
+            code: "DELIVERY_ZONE_OUT_OF_RANGE",
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const { data: profile, error: profileError } = await supabaseAdmin
@@ -110,13 +193,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Block order if a phone is on the profile but hasn't been verified
-    if (profile.phone && !profile.phone_verified) {
-      return NextResponse.json(
-        { error: "Phone number not verified.", code: "PHONE_NOT_VERIFIED" },
-        { status: 403 }
-      );
-    }
+    // Temporarily disabled by request: allow checkout even when phone is unverified.
+    // Keep this block easy to restore when verification gating is re-enabled.
 
     const nameFromBody =
       typeof body.customer_name === "string" ? body.customer_name.trim() : "";

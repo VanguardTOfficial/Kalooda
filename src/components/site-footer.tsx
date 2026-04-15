@@ -26,9 +26,6 @@ export function SiteFooter() {
                 className="h-11 w-auto object-contain opacity-95 transition-opacity group-hover:opacity-100"
               />
             </Link>
-            <p className="mt-5 max-w-md text-sm leading-relaxed text-ink-soft">
-              {t("footerTagline")}
-            </p>
             <div className="mt-6">
               <LanguageSwitcher className="inline-flex items-center gap-2 rounded-lg border border-[#1F443C]/15 bg-white/50 px-4 py-2.5 text-sm font-medium text-ink hover:border-[#D3A94C]/45 hover:bg-white transition-colors" />
             </div>

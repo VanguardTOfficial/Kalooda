@@ -17,6 +17,7 @@ export interface AddressDraft {
   street_line: string;
   building_number: string;
   formatted_address?: string;
+  place_id?: string | null;
   latitude: number | null;
   longitude: number | null;
   is_default?: boolean;
@@ -203,6 +204,7 @@ export function AddressEditor({ locale, value, onChange, t }: AddressEditorProps
         building_number: closestBuilding || value.building_number,
         formatted_address:
           fallback.formatted_address || formattedAddressHint || value.formatted_address,
+        place_id: null,
         latitude: lat,
         longitude: lng,
       });
@@ -212,6 +214,7 @@ export function AddressEditor({ locale, value, onChange, t }: AddressEditorProps
     onChange({
       ...value,
       formatted_address: formattedAddressHint ?? value.formatted_address,
+      place_id: null,
       latitude: lat,
       longitude: lng,
     });
@@ -237,7 +240,10 @@ export function AddressEditor({ locale, value, onChange, t }: AddressEditorProps
     }
   }
 
-  async function hydrateFromGeocodeResult(top: google.maps.GeocoderResult | undefined) {
+  async function hydrateFromGeocodeResult(
+    top: google.maps.GeocoderResult | undefined,
+    placeId: string | null = null
+  ) {
     if (!top) return;
     const loc = top.geometry?.location;
     const parsed = parseAddressParts(top);
@@ -253,6 +259,7 @@ export function AddressEditor({ locale, value, onChange, t }: AddressEditorProps
       street_line: parsed.street_line || value.street_line,
       building_number: buildingNumber,
       formatted_address: top.formatted_address || value.formatted_address,
+      place_id: placeId,
       latitude: lat,
       longitude: lng,
     });
@@ -264,7 +271,7 @@ export function AddressEditor({ locale, value, onChange, t }: AddressEditorProps
       setMapsUnavailable(false);
       const geocoder = new googleObj.maps.Geocoder();
       const result = await geocoder.geocode({ placeId: prediction.place_id });
-      await hydrateFromGeocodeResult(result.results?.[0]);
+      await hydrateFromGeocodeResult(result.results?.[0], prediction.place_id);
       setPredictions([]);
     } catch {
       setMapsUnavailable(true);
@@ -305,6 +312,7 @@ export function AddressEditor({ locale, value, onChange, t }: AddressEditorProps
                 street_line: fallback.street_line || value.street_line,
                 building_number: closestBuilding || value.building_number,
                 formatted_address: fallback.formatted_address || value.formatted_address,
+                place_id: null,
                 latitude: nextLat,
                 longitude: nextLng,
               });
@@ -317,6 +325,7 @@ export function AddressEditor({ locale, value, onChange, t }: AddressEditorProps
             onChange({
               ...value,
               building_number: closestBuilding || value.building_number,
+              place_id: null,
               latitude: nextLat,
               longitude: nextLng,
             });
