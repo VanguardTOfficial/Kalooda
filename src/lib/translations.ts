@@ -37,6 +37,7 @@ export const translations = {
     wizardNext: "Next",
     wizardBack: "Back",
     addConfiguredToCart: "Add to cart",
+    saveChanges: "Save changes",
     optionsStepInvalid: "Complete this step to continue.",
     optionRemoveOne: "Remove one",
 
@@ -147,6 +148,10 @@ export const translations = {
     paymentSection: "Payment method",
     cashOnDelivery: "Cash on delivery",
     orderInvalidRequest: "Check your order details and try again.",
+    deliveryZoneChecking: "Checking delivery coverage...",
+    deliveryZoneOutOfRange: "We don't deliver to this location yet.",
+    deliveryZoneValidationFailed:
+      "We couldn't validate this location right now. Try again in a moment.",
     adminFulfillment: "Fulfillment",
     adminDeliveryAddress: "Address",
     adminPaymentMethod: "Payment",
@@ -209,6 +214,14 @@ export const translations = {
     // Admin nav
     dashboard: "Dashboard",
     functions: "Functions",
+    deliveryZones: "Delivery zones",
+    deliveryZonesHint:
+      "Enable only the zones where delivery is currently supported.",
+    deliveryZonesLoadFailed: "Could not load delivery zones.",
+    deliveryZonesUpdateFailed: "Could not update this delivery zone.",
+    zoneActive: "Active",
+    zoneInactive: "Inactive",
+    noDeliveryZones: "No delivery zones configured yet.",
     optionsLibrary: "Options library",
     createOption: "Create option",
     addOption: "Add option",
@@ -490,6 +503,7 @@ export const translations = {
     wizardNext: "التالي",
     wizardBack: "رجوع",
     addConfiguredToCart: "أضف للسلة",
+    saveChanges: "حفظ التعديلات",
     optionsStepInvalid: "أكمل هذه الخطوة للمتابعة.",
     optionRemoveOne: "إزالة واحدة",
 
@@ -599,6 +613,10 @@ export const translations = {
     paymentSection: "طريقة الدفع",
     cashOnDelivery: "الدفع عند الاستلام (نقداً)",
     orderInvalidRequest: "تحقق من تفاصيل الطلب وحاول مرة أخرى.",
+    deliveryZoneChecking: "جارٍ التحقق من نطاق التوصيل...",
+    deliveryZoneOutOfRange: "نحن لا نوصل لهذا الموقع بعد.",
+    deliveryZoneValidationFailed:
+      "تعذر التحقق من الموقع حالياً. حاول مرة أخرى بعد قليل.",
     adminFulfillment: "طريقة الاستلام",
     adminDeliveryAddress: "العنوان",
     adminPaymentMethod: "الدفع",
@@ -661,6 +679,13 @@ export const translations = {
     // Admin nav
     dashboard: "لوحة القيادة",
     functions: "الوظائف",
+    deliveryZones: "نطاقات التوصيل",
+    deliveryZonesHint: "فعّل فقط النطاقات التي يتوفر فيها التوصيل حالياً.",
+    deliveryZonesLoadFailed: "تعذر تحميل نطاقات التوصيل.",
+    deliveryZonesUpdateFailed: "تعذر تحديث نطاق التوصيل.",
+    zoneActive: "مفعّل",
+    zoneInactive: "غير مفعّل",
+    noDeliveryZones: "لا توجد نطاقات توصيل حتى الآن.",
     optionsLibrary: "مكتبة الخيارات",
     createOption: "إنشاء خيار",
     addOption: "إضافة خيار",

@@ -103,6 +103,24 @@ const rowStatusIcons: Record<string, React.ElementType> = {
   cancelled: XCircle,
 };
 
+function orderMapHref(order: Order): string | null {
+  const lat = Number(order.delivery_latitude);
+  const lng = Number(order.delivery_longitude);
+  const hasValidCoords =
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    Math.abs(lat) <= 90 &&
+    Math.abs(lng) <= 180 &&
+    !(Math.abs(lat) < 0.000001 && Math.abs(lng) < 0.000001);
+
+  if (hasValidCoords) {
+    return `https://www.google.com/maps?q=${lat},${lng}`;
+  }
+  const query = (order.delivery_formatted_address ?? order.delivery_address ?? "").trim();
+  if (!query) return null;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
+
 export default function AdminDashboard() {
   const { t, locale } = useLanguage();
 
@@ -605,6 +623,16 @@ export default function AdminDashboard() {
                       {t("adminDeliveryAddress")}:
                     </span>{" "}
                     {selectedOrder.delivery_address}
+                    {orderMapHref(selectedOrder) ? (
+                      <a
+                        href={orderMapHref(selectedOrder) ?? "#"}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ms-2 inline-flex text-xs font-semibold text-primary-dark hover:underline"
+                      >
+                        {t("openInMap")}
+                      </a>
+                    ) : null}
                   </p>
                 )}
             </div>
@@ -804,9 +832,23 @@ export default function AdminDashboard() {
                             : t("fulfillmentDelivery")}
                         </td>
                         <td className="max-w-[12rem] whitespace-pre-wrap break-words px-4 py-3 text-admin-muted">
-                          {fulfillment === "delivery" && order.delivery_address
-                            ? order.delivery_address
-                            : "—"}
+                          {fulfillment === "delivery" && order.delivery_address ? (
+                            <div className="space-y-1">
+                              <p>{order.delivery_address}</p>
+                              {orderMapHref(order) ? (
+                                <a
+                                  href={orderMapHref(order) ?? "#"}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex text-xs font-semibold text-primary-dark hover:underline"
+                                >
+                                  {t("openInMap")}
+                                </a>
+                              ) : null}
+                            </div>
+                          ) : (
+                            "—"
+                          )}
                         </td>
                         <td className="px-4 py-3 text-admin-muted">
                           {(order.payment_method ?? "cash_on_delivery") === "cash_on_delivery"

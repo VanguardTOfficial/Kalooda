@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import { X, Minus, Plus, ShoppingBag } from "lucide-react";
 import { useCart } from "@/contexts/cart-context";
@@ -10,6 +10,7 @@ import Link from "next/link";
 import { lineUnitPrice } from "@/lib/cart-line-price";
 import { isSimpleConfiguration } from "@/lib/product-options/configuration-key";
 import type { SnapshotChoiceLine } from "@/lib/product-options/types";
+import { ProductStorefrontModal } from "@/components/storefront/product-options-wizard/product-options-wizard-modal";
 
 function aggregateSnapshotLines(lines: SnapshotChoiceLine[]) {
   const map = new Map<
@@ -53,6 +54,7 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
   const {
     items,
     removeItem,
+    editItemOptions,
     updateQuantity,
     totalPrice,
     cartReady,
@@ -61,12 +63,17 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
   } = useCart();
   const { t, dir, locale } = useLanguage();
   const { user } = useAuth();
+  const [editingLineId, setEditingLineId] = useState<string | null>(null);
 
   if (!hydrated) return null;
 
   const checkoutHref = user
     ? "/checkout"
     : `/sign-in?next=${encodeURIComponent("/checkout")}`;
+  const editingItem =
+    editingLineId != null
+      ? items.find((item) => item.lineId === editingLineId) ?? null
+      : null;
 
   return (
     <>
@@ -197,6 +204,16 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
                     </div>
                   </div>
                   <div className="flex items-center justify-between gap-3 sm:justify-end">
+                    {item.line_options &&
+                    !isSimpleConfiguration(item.line_options.selections) ? (
+                      <button
+                        type="button"
+                        onClick={() => setEditingLineId(item.lineId)}
+                        className="rounded-lg border border-[#1f443c]/12 px-2.5 py-1.5 text-xs font-semibold text-ink-soft transition-colors hover:border-[#D3A94C]/35 hover:text-ink"
+                      >
+                        {t("edit")}
+                      </button>
+                    ) : null}
                     <div className="flex items-center gap-1 rounded-lg border border-[#1f443c]/12 bg-[#faf6ef] p-1">
                       <button
                         type="button"
@@ -256,6 +273,20 @@ export function CartDrawer({ open, onClose }: CartDrawerProps) {
           </div>
         )}
       </div>
+      {editingItem && editingItem.line_options ? (
+        <ProductStorefrontModal
+          product={editingItem.product}
+          open
+          mode="edit"
+          initialSelections={editingItem.line_options.selections}
+          initialQuantity={editingItem.quantity}
+          onEditConfigured={(lineOptions) => {
+            editItemOptions(editingItem.lineId, lineOptions, lineOptions.quantity);
+            setEditingLineId(null);
+          }}
+          onClose={() => setEditingLineId(null)}
+        />
+      ) : null}
     </>
   );
 }

@@ -13,6 +13,8 @@ import { useCartDrawerEvent } from "@/hooks/use-cart-drawer-event";
 import { InlineBanner } from "@/components/inline-banner";
 import { ORDER_VALIDATION_ERROR } from "@/lib/order-validation-constants";
 import { lineUnitPrice } from "@/lib/cart-line-price";
+import { isSimpleConfiguration } from "@/lib/product-options/configuration-key";
+import type { SnapshotChoiceLine } from "@/lib/product-options/types";
 import type { CustomerAddress } from "@/types/database";
 import { AddressEditor, type AddressDraft } from "@/components/address-editor";
 import dynamic from "next/dynamic";
@@ -22,17 +24,43 @@ type CheckoutBanner =
   | { type: "error"; message: string }
   | { type: "signIn" };
 type SubmissionPhase = "idle" | "submitting";
+type DeliveryZoneValidation =
+  | { state: "idle"; message: null }
+  | { state: "checking"; message: null }
+  | { state: "deliverable"; message: null }
+  | { state: "blocked"; message: string }
+  | { state: "error"; message: string };
 const LazyMapPicker = dynamic(
   () => import("@/components/location-map-picker").then((m) => m.LocationMapPicker),
   { ssr: false }
 );
 
-function addressMapHref(addr: CustomerAddress): string {
-  if (addr.latitude != null && addr.longitude != null) {
-    return `https://www.google.com/maps?q=${addr.latitude},${addr.longitude}`;
+function aggregateSnapshotLines(lines: SnapshotChoiceLine[]) {
+  const map = new Map<
+    string,
+    {
+      name_en: string;
+      name_ar: string | null;
+      totalApplied: number;
+      count: number;
+    }
+  >();
+  for (const cl of lines) {
+    const key = `${cl.option_id}:${cl.choice_id}`;
+    const existing = map.get(key);
+    if (existing) {
+      existing.count += 1;
+      existing.totalApplied += cl.price_applied;
+    } else {
+      map.set(key, {
+        name_en: cl.name_en,
+        name_ar: cl.name_ar,
+        totalApplied: cl.price_applied,
+        count: 1,
+      });
+    }
   }
-  const query = `${addr.city}, ${addr.street_line}, ${addr.building_number}`;
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+  return [...map.entries()].map(([key, value]) => ({ key, ...value }));
 }
 
 export default function CheckoutPage() {
@@ -48,6 +76,7 @@ export default function CheckoutPage() {
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [deliveryLat, setDeliveryLat] = useState<number | null>(null);
   const [deliveryLng, setDeliveryLng] = useState<number | null>(null);
+  const [deliveryPlaceId, setDeliveryPlaceId] = useState<string | null>(null);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [addressMenuOpen, setAddressMenuOpen] = useState(false);
   const [addresses, setAddresses] = useState<CustomerAddress[]>([]);
@@ -58,10 +87,13 @@ export default function CheckoutPage() {
     city: "",
     street_line: "",
     building_number: "",
+    place_id: null,
     latitude: null,
     longitude: null,
     is_default: false,
   });
+  const [deliveryZoneValidation, setDeliveryZoneValidation] =
+    useState<DeliveryZoneValidation>({ state: "idle", message: null });
   const [pickup, setPickup] = useState<{
     pickup_name: string | null;
     pickup_address: string | null;
@@ -83,6 +115,12 @@ export default function CheckoutPage() {
     (selectedAddressId
       ? addresses.find((addr) => addr.id === selectedAddressId)
       : null) ?? null;
+  const shouldValidateDeliveryZone =
+    fulfillmentType === "delivery" && deliveryLat != null && deliveryLng != null;
+  const effectiveDeliveryZoneValidation: DeliveryZoneValidation =
+    shouldValidateDeliveryZone
+      ? deliveryZoneValidation
+      : { state: "idle", message: null };
 
   function applySelectedAddress(id: string | null) {
     setSelectedAddressId(id);
@@ -93,6 +131,7 @@ export default function CheckoutPage() {
     );
     setDeliveryLat(selected.latitude != null ? Number(selected.latitude) : null);
     setDeliveryLng(selected.longitude != null ? Number(selected.longitude) : null);
+    setDeliveryPlaceId(null);
   }
 
   useEffect(() => {
@@ -127,6 +166,7 @@ export default function CheckoutPage() {
         );
         setDeliveryLat(defaultAddr.latitude != null ? Number(defaultAddr.latitude) : null);
         setDeliveryLng(defaultAddr.longitude != null ? Number(defaultAddr.longitude) : null);
+        setDeliveryPlaceId(null);
       }
       if (pickupRes.ok) setPickup(pickupJson.data ?? null);
     })();
@@ -134,6 +174,51 @@ export default function CheckoutPage() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!shouldValidateDeliveryZone) {
+      return;
+    }
+
+    const controller = new AbortController();
+    void (async () => {
+      setDeliveryZoneValidation({ state: "checking", message: null });
+      try {
+        const res = await fetch(
+          `/api/delivery-zones/check?lat=${encodeURIComponent(String(deliveryLat))}&lng=${encodeURIComponent(String(deliveryLng))}`,
+          { signal: controller.signal }
+        );
+        const data = (await res.json().catch(() => null)) as
+          | { deliverable?: boolean; error?: string | null }
+          | null;
+        if (!res.ok) {
+          setDeliveryZoneValidation({
+            state: "error",
+            message: data?.error || t("deliveryZoneValidationFailed"),
+          });
+          return;
+        }
+        if (data?.deliverable) {
+          setDeliveryZoneValidation({ state: "deliverable", message: null });
+        } else {
+          setDeliveryZoneValidation({
+            state: "blocked",
+            message: t("deliveryZoneOutOfRange"),
+          });
+        }
+      } catch (err) {
+        if ((err as { name?: string }).name === "AbortError") return;
+        setDeliveryZoneValidation({
+          state: "error",
+          message: t("deliveryZoneValidationFailed"),
+        });
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
+  }, [deliveryLat, deliveryLng, shouldValidateDeliveryZone, t]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -163,6 +248,16 @@ export default function CheckoutPage() {
       });
       return;
     }
+    if (
+      fulfillmentType === "delivery" &&
+      effectiveDeliveryZoneValidation.state === "blocked"
+    ) {
+      setCheckoutBanner({
+        type: "error",
+        message: effectiveDeliveryZoneValidation.message || t("deliveryZoneOutOfRange"),
+      });
+      return;
+    }
     setSubmissionPhase("submitting");
 
     const customerName = profileComplete
@@ -186,6 +281,7 @@ export default function CheckoutPage() {
             fulfillmentType === "delivery" ? selectedAddressId : null,
           delivery_latitude: fulfillmentType === "delivery" ? deliveryLat : null,
           delivery_longitude: fulfillmentType === "delivery" ? deliveryLng : null,
+          delivery_place_id: fulfillmentType === "delivery" ? deliveryPlaceId : null,
           delivery_formatted_address:
             fulfillmentType === "delivery" ? deliveryAddress.trim() : null,
           payment_method: "cash_on_delivery",
@@ -221,6 +317,14 @@ export default function CheckoutPage() {
       }
       if (res.status === 400 && data?.code === ORDER_VALIDATION_ERROR) {
         setCheckoutBanner({ type: "error", message: t("orderInvalidRequest") });
+        setSubmissionPhase("idle");
+        return;
+      }
+      if (res.status === 400 && data?.code === "DELIVERY_ZONE_OUT_OF_RANGE") {
+        setCheckoutBanner({
+          type: "error",
+          message: t("deliveryZoneOutOfRange"),
+        });
         setSubmissionPhase("idle");
         return;
       }
@@ -344,10 +448,10 @@ export default function CheckoutPage() {
               <ul className="mt-4 divide-y divide-[#1F443C]/8">
                 {items.map((item) => (
                   <li
-                    key={item.product.id}
+                    key={item.lineId}
                     className="flex items-center justify-between gap-4 py-3 text-sm first:pt-0"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex min-w-0 items-center gap-3">
                       {item.product.image_url ? (
                         <Image
                           src={item.product.image_url}
@@ -360,9 +464,33 @@ export default function CheckoutPage() {
                       ) : (
                         <div className="h-10 w-10 rounded-lg bg-[#1F443C]/8 shrink-0" />
                       )}
-                      <span className="text-ink-soft">
-                        {locale === "ar" && item.product.name_ar ? item.product.name_ar : item.product.name} × {item.quantity}
-                      </span>
+                      <div className="min-w-0">
+                        <span className="block text-ink-soft">
+                          {locale === "ar" && item.product.name_ar
+                            ? item.product.name_ar
+                            : item.product.name}{" "}
+                          × {item.quantity}
+                        </span>
+                        {item.line_options &&
+                        !isSimpleConfiguration(item.line_options.selections) &&
+                        item.line_options.snapshot.choice_lines.length > 0 ? (
+                          <ul className="mt-1 space-y-0.5 text-[11px] text-ink-soft/80">
+                            {aggregateSnapshotLines(
+                              item.line_options.snapshot.choice_lines
+                            ).map((row) => (
+                              <li key={row.key}>
+                                {locale === "ar" && row.name_ar
+                                  ? row.name_ar
+                                  : row.name_en}
+                                {row.count > 1 ? ` ×${row.count}` : ""}
+                                {row.totalApplied > 0
+                                  ? ` (+₪${row.totalApplied.toFixed(2)})`
+                                  : ""}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </div>
                     </div>
                     <span className="font-semibold text-ink shrink-0">
                       ₪{(lineUnitPrice(item) * item.quantity).toFixed(2)}
@@ -519,17 +647,6 @@ export default function CheckoutPage() {
                           ))}
                         </div>
                       ) : null}
-                      {selectedAddressId ? (
-                        <a
-                          href={addressMapHref(selectedAddress ?? addresses[0])}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary-dark hover:underline"
-                        >
-                          <MapPin className="h-3.5 w-3.5" />
-                          {t("openInMap")}
-                        </a>
-                      ) : null}
                     </div>
                   ) : null}
                   <button
@@ -544,7 +661,22 @@ export default function CheckoutPage() {
                       <AddressEditor
                         locale={locale}
                         value={addressDraft}
-                        onChange={setAddressDraft}
+                        onChange={(next) => {
+                          setAddressDraft(next);
+                          if (next.latitude != null && next.longitude != null) {
+                            setDeliveryLat(next.latitude);
+                            setDeliveryLng(next.longitude);
+                          }
+                          if (next.formatted_address?.trim()) {
+                            setDeliveryAddress(next.formatted_address.trim());
+                          } else if (next.street_line.trim() || next.city.trim()) {
+                            setDeliveryAddress(
+                              `${next.city}, ${next.street_line}, ${next.building_number}`.trim()
+                            );
+                          }
+                          setDeliveryPlaceId(next.place_id ?? null);
+                          setSelectedAddressId(null);
+                        }}
                         t={(key) => t(key as never)}
                       />
                       <button
@@ -585,6 +717,7 @@ export default function CheckoutPage() {
                           );
                           setDeliveryLat(next.latitude != null ? Number(next.latitude) : null);
                           setDeliveryLng(next.longitude != null ? Number(next.longitude) : null);
+                          setDeliveryPlaceId(addressDraft.place_id ?? null);
                           setAddressDraftOpen(false);
                           setAddressDraft({
                             label_type: null,
@@ -592,6 +725,7 @@ export default function CheckoutPage() {
                             city: "",
                             street_line: "",
                             building_number: "",
+                            place_id: null,
                             latitude: null,
                             longitude: null,
                             is_default: false,
@@ -613,6 +747,22 @@ export default function CheckoutPage() {
                       />
                       <span>{t("saveAddressToProfile")}</span>
                     </label>
+                  ) : null}
+                  {effectiveDeliveryZoneValidation.state === "checking" ? (
+                    <p className="text-xs text-ink-soft">{t("deliveryZoneChecking")}</p>
+                  ) : effectiveDeliveryZoneValidation.state === "blocked" ? (
+                    <InlineBanner variant="error" className="text-start">
+                      <p>
+                        {effectiveDeliveryZoneValidation.message || t("deliveryZoneOutOfRange")}
+                      </p>
+                    </InlineBanner>
+                  ) : effectiveDeliveryZoneValidation.state === "error" ? (
+                    <InlineBanner variant="warning" className="text-start">
+                      <p>
+                        {effectiveDeliveryZoneValidation.message ||
+                          t("deliveryZoneValidationFailed")}
+                      </p>
+                    </InlineBanner>
                   ) : null}
                 </>
               )}
@@ -687,7 +837,13 @@ export default function CheckoutPage() {
               )}
               <button
                 type="submit"
-                disabled={submissionPhase !== "idle" || !cartReady}
+                disabled={
+                  submissionPhase !== "idle" ||
+                  !cartReady ||
+                  (fulfillmentType === "delivery" &&
+                    (effectiveDeliveryZoneValidation.state === "blocked" ||
+                      effectiveDeliveryZoneValidation.state === "checking"))
+                }
                 className="btn-primary-solid w-full py-3.5 disabled:opacity-50"
               >
                 {submissionPhase !== "idle" && <Loader2 className="h-4 w-4 animate-spin" />}

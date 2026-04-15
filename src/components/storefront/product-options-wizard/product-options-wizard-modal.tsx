@@ -36,6 +36,7 @@ type State = {
   loading: boolean;
   error: string | null;
   stepError: string | null;
+  quantity: number;
 };
 
 const initialState: State = {
@@ -45,6 +46,7 @@ const initialState: State = {
   loading: true,
   error: null,
   stepError: null,
+  quantity: 1,
 };
 
 function defaultSelectionsForBundle(
@@ -87,12 +89,19 @@ function pruneSelections(
 
 type Action =
   | { type: "load_start" }
-  | { type: "load_ok"; bundle: ProductOptionsApiResponse }
+  | {
+      type: "load_ok";
+      bundle: ProductOptionsApiResponse;
+      initialSelections?: SelectionsMap;
+    }
   | { type: "load_err"; message: string }
   | { type: "set_step"; index: number }
   | { type: "set_selections"; selections: SelectionsMap }
   | { type: "clear_step_error" }
   | { type: "set_step_error"; message: string }
+  | { type: "set_quantity"; quantity: number }
+  | { type: "decrement_quantity" }
+  | { type: "increment_quantity" }
   | { type: "reset" }
   | { type: "no_options_ready" };
 
@@ -115,11 +124,18 @@ function reducer(state: State, action: Action): State {
     case "load_ok": {
       const defaults = defaultSelectionsForBundle(action.bundle);
       const pruned = pruneSelections(action.bundle, state.selections);
+      const fromInitial = action.initialSelections
+        ? pruneSelections(action.bundle, action.initialSelections)
+        : null;
       const selections: SelectionsMap = {};
       for (const j of action.bundle.junctions) {
         const pr = pruned[j.option_id] ?? [];
         const def = defaults[j.option_id] ?? [];
-        selections[j.option_id] = pr.length > 0 ? pr : def;
+        if (fromInitial) {
+          selections[j.option_id] = fromInitial[j.option_id] ?? [];
+        } else {
+          selections[j.option_id] = pr.length > 0 ? pr : def;
+        }
       }
       return {
         ...state,
@@ -145,6 +161,12 @@ function reducer(state: State, action: Action): State {
       return { ...state, stepError: null };
     case "set_step_error":
       return { ...state, stepError: action.message };
+    case "set_quantity":
+      return { ...state, quantity: Math.max(1, Math.floor(action.quantity || 1)) };
+    case "decrement_quantity":
+      return { ...state, quantity: Math.max(1, state.quantity - 1) };
+    case "increment_quantity":
+      return { ...state, quantity: state.quantity + 1 };
     default:
       return state;
   }
@@ -259,12 +281,28 @@ export function ProductStorefrontModal({
   open,
   onClose,
   flySourceRef,
+  mode = "add",
+  initialSelections,
+  initialQuantity = 1,
+  onEditConfigured,
 }: {
   product: Product;
   open: boolean;
   onClose: () => void;
   /** Animate from this element (e.g. the product card). Falls back to the add button. */
   flySourceRef?: RefObject<HTMLElement | null>;
+  mode?: "add" | "edit";
+  initialSelections?: SelectionsMap;
+  initialQuantity?: number;
+  onEditConfigured?: (lineOptions: {
+    selections: SelectionsMap;
+    snapshot: {
+      choice_lines: ReturnType<typeof computeOptionsPricing>["choice_lines"];
+      options_subtotal: number;
+      unit_price: number;
+    };
+    quantity: number;
+  }) => void;
 }) {
   const { t, locale } = useLanguage();
   const { addItem, addItemWithOptions } = useCart();
@@ -285,23 +323,24 @@ export function ProductStorefrontModal({
         dispatch({ type: "load_err", message: t("noProducts") });
         return;
       }
-      dispatch({ type: "load_ok", bundle: data });
+      dispatch({ type: "load_ok", bundle: data, initialSelections });
     } catch {
       dispatch({ type: "load_err", message: t("orderFailed") });
     }
-  }, [product.id, t]);
+  }, [initialSelections, product.id, t]);
 
   useEffect(() => {
     if (!open) {
       dispatch({ type: "reset" });
       return;
     }
+    dispatch({ type: "set_quantity", quantity: initialQuantity });
     if (product.has_options) {
       void loadBundle();
     } else {
       dispatch({ type: "no_options_ready" });
     }
-  }, [open, product.has_options, product.id, loadBundle]);
+  }, [open, product.has_options, product.id, initialQuantity, loadBundle]);
 
   useEffect(() => {
     if (!open || !product.has_options) return;
@@ -442,14 +481,21 @@ export function ProductStorefrontModal({
       state.selections,
       base
     );
-    addItemWithOptions(product, {
+    const lineOptions = {
       selections: state.selections,
       snapshot: {
         choice_lines: pricing.choice_lines,
         options_subtotal: pricing.options_subtotal,
         unit_price: pricing.unit_price,
       },
-    });
+      quantity: state.quantity,
+    };
+    if (mode === "edit" && onEditConfigured) {
+      onEditConfigured(lineOptions);
+      onClose();
+      return;
+    }
+    addItemWithOptions(product, lineOptions, state.quantity);
     flyToCart({
       sourceEl: flySourceRef?.current ?? primaryRef.current,
     });
@@ -458,7 +504,9 @@ export function ProductStorefrontModal({
 
   function handleSimpleAddToCart() {
     if (unavailable) return;
-    addItem(product);
+    for (let i = 0; i < state.quantity; i += 1) {
+      addItem(product);
+    }
     flyToCart({
       sourceEl: flySourceRef?.current ?? primaryRef.current,
     });
@@ -484,6 +532,8 @@ export function ProductStorefrontModal({
           getProductEffectivePrice(product)
         ).unit_price
       : getProductEffectivePrice(product);
+  const lineTotal = runningTotal * state.quantity;
+  const isEditing = mode === "edit";
 
   return (
     <div
@@ -621,7 +671,10 @@ export function ProductStorefrontModal({
               <div className="mb-3 flex items-center justify-between text-sm">
                 <span className="text-ink-soft">{t("total")}</span>
                 <span className="font-display text-lg font-bold text-primary-dark">
-                  ₪{runningTotal.toFixed(2)} {t("each")}
+                  ₪{lineTotal.toFixed(2)}{" "}
+                  <span className="text-sm font-semibold text-ink-soft">
+                    ({state.quantity} × ₪{runningTotal.toFixed(2)})
+                  </span>
                 </span>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -645,15 +698,40 @@ export function ProductStorefrontModal({
                     {t("wizardNext")}
                   </button>
                 ) : (
-                  <button
-                    ref={primaryRef}
-                    type="button"
-                    onClick={handleAddToCart}
-                    disabled={unavailable || state.loading || !bundle}
-                    className="ml-auto rounded-lg bg-[#0A2923] px-4 py-2.5 text-sm font-bold text-[#FFEC94] shadow-md hover:bg-[#082018] disabled:opacity-50"
-                  >
-                    {t("addConfiguredToCart")}
-                  </button>
+                  <>
+                    <div className="flex items-center gap-1 rounded-lg border border-[#1f443c]/12 bg-[#faf6ef] p-1">
+                      <button
+                        type="button"
+                        onClick={() => dispatch({ type: "decrement_quantity" })}
+                        className="rounded-md p-2 text-ink transition-colors hover:bg-[#D3A94C]/15"
+                        aria-label={t("optionRemoveOne")}
+                        disabled={unavailable}
+                      >
+                        <Minus className="h-3.5 w-3.5" />
+                      </button>
+                      <span className="min-w-8 text-center text-sm font-bold text-ink">
+                        {state.quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => dispatch({ type: "increment_quantity" })}
+                        className="rounded-md p-2 text-ink transition-colors hover:bg-[#D3A94C]/15"
+                        aria-label={t("add")}
+                        disabled={unavailable}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <button
+                      ref={primaryRef}
+                      type="button"
+                      onClick={handleAddToCart}
+                      disabled={unavailable || state.loading || !bundle}
+                      className="ml-auto rounded-lg bg-[#0A2923] px-4 py-2.5 text-sm font-bold text-[#FFEC94] shadow-md hover:bg-[#082018] disabled:opacity-50"
+                    >
+                      {isEditing ? t("saveChanges") : t("addConfiguredToCart")}
+                    </button>
+                  </>
                 )}
               </div>
             </>
@@ -662,18 +740,46 @@ export function ProductStorefrontModal({
               <div className="mb-3 flex items-center justify-between text-sm">
                 <span className="text-ink-soft">{t("total")}</span>
                 <span className="font-display text-lg font-bold text-primary-dark">
-                  ₪{runningTotal.toFixed(2)} {t("each")}
+                  ₪{lineTotal.toFixed(2)}{" "}
+                  <span className="text-sm font-semibold text-ink-soft">
+                    ({state.quantity} × ₪{runningTotal.toFixed(2)})
+                  </span>
                 </span>
               </div>
-              <button
-                ref={primaryRef}
-                type="button"
-                onClick={handleSimpleAddToCart}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0A2923] px-4 py-3 text-sm font-bold text-[#FFEC94] shadow-md transition-colors hover:bg-[#082018] active:scale-[0.99]"
-              >
-                <Plus className="h-4 w-4" />
-                {t("add")}
-              </button>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 rounded-lg border border-[#1f443c]/12 bg-[#faf6ef] p-1">
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: "decrement_quantity" })}
+                    className="rounded-md p-2 text-ink transition-colors hover:bg-[#D3A94C]/15"
+                    aria-label={t("optionRemoveOne")}
+                    disabled={unavailable}
+                  >
+                    <Minus className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="min-w-8 text-center text-sm font-bold text-ink">
+                    {state.quantity}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => dispatch({ type: "increment_quantity" })}
+                    className="rounded-md p-2 text-ink transition-colors hover:bg-[#D3A94C]/15"
+                    aria-label={t("add")}
+                    disabled={unavailable}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <button
+                  ref={primaryRef}
+                  type="button"
+                  onClick={handleSimpleAddToCart}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#0A2923] px-4 py-3 text-sm font-bold text-[#FFEC94] shadow-md transition-colors hover:bg-[#082018] active:scale-[0.99]"
+                >
+                  <Plus className="h-4 w-4" />
+                  {t("add")}
+                </button>
+              </div>
             </>
           )}
         </div>
