@@ -318,11 +318,25 @@ export default function FunctionsPage() {
         | DeliveryZoneRecord
         | { error?: string }
         | null;
-      if (!res.ok || !data || Array.isArray(data)) {
+      const errorMessage =
+        data &&
+        !Array.isArray(data) &&
+        "error" in data &&
+        typeof data.error === "string"
+          ? data.error
+          : t("deliveryZonesUpdateFailed");
+
+      const isDeliveryZonePayload =
+        data &&
+        !Array.isArray(data) &&
+        "id" in data &&
+        "name_en" in data &&
+        "name_ar" in data &&
+        "is_active" in data;
+
+      if (!res.ok || !isDeliveryZonePayload) {
         throw new Error(
-          data && !Array.isArray(data) && typeof data.error === "string"
-            ? data.error
-            : t("deliveryZonesUpdateFailed")
+          errorMessage
         );
       }
       setDeliveryZones((prev) =>
