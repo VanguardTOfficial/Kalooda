@@ -31,10 +31,10 @@ export default function AdminLayout({
   ];
 
   return (
-    <div className="min-h-screen admin-canvas">
-      <header className="sticky top-0 z-40 border-b border-[#1F443C]/12 bg-gradient-to-b from-[#0A2923] to-[#123A33] shadow-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
-          <Link href="/" className="group flex items-center">
+    <div className="min-h-screen w-full min-w-0 admin-canvas">
+      <header className="sticky top-0 z-40 w-full min-w-0 border-b border-[#1F443C]/12 bg-gradient-to-b from-[#0A2923] to-[#123A33] shadow-md">
+        <div className="mx-auto flex w-full min-w-0 max-w-7xl items-center justify-between gap-2 px-4 py-3 sm:gap-3 sm:px-6">
+          <Link href="/" className="group flex shrink-0 items-center">
             <Image
               src="/brand/logo-transparent.png"
               alt="Kalooda"
@@ -43,13 +43,13 @@ export default function AdminLayout({
               className="h-8 w-auto object-contain transition-opacity group-hover:opacity-90"
             />
           </Link>
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex min-w-0 shrink items-center gap-1.5 sm:gap-3">
             {profile?.full_name && (
               <span className="hidden max-w-[10rem] truncate text-sm text-[#A8B5AD]/75 sm:block">
                 {profile.full_name}
               </span>
             )}
-            <LanguageSwitcher className="flex items-center gap-1.5 rounded-lg border border-[#D3A94C]/20 px-3 py-2 text-sm font-medium text-[#E5EDE8]/85 transition-colors hover:bg-white/[0.06] hover:text-[#FFEC94]" />
+            <LanguageSwitcher className="flex min-w-0 items-center gap-1.5 rounded-lg border border-[#D3A94C]/20 px-2 py-2 text-xs font-medium text-[#E5EDE8]/85 transition-colors hover:bg-white/[0.06] hover:text-[#FFEC94] sm:px-3 sm:text-sm max-sm:[&_span]:max-w-[5.5rem] max-sm:[&_span]:truncate" />
             <button
               type="button"
               onClick={signOut}
@@ -61,7 +61,7 @@ export default function AdminLayout({
           </div>
         </div>
 
-        <nav className="mx-auto flex max-w-7xl gap-0.5 border-t border-white/[0.06] px-2 sm:px-6">
+        <nav className="mx-auto flex w-full min-w-0 max-w-7xl gap-0.5 border-t border-white/[0.06] px-2 sm:px-6">
           {navItems.map((item) => {
             const isActive =
               item.href === "/admin"

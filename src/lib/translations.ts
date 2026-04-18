@@ -323,7 +323,26 @@ export const translations = {
     removeCategory: "Remove",
     noCategories: "No categories yet.",
     categoryAddFailed: "Failed to add category.",
-    confirmDeleteCategory: "Are you sure you want to remove this category? Products in this category will become uncategorized.",
+    confirmDeleteCategory:
+      "Are you sure you want to remove this category? If any products still reference it, deletion may fail until they are moved to another category.",
+
+    categoryProductsModalTitle: "Products in this category",
+    categoryProductsOpenHint: "View products",
+    categoryProductsAddSection: "Add a product to this category",
+    categoryProductsPickProduct: "Choose a product",
+    categoryProductsAddButton: "Add to category",
+    categoryProductsInCategory: "In this category",
+    categoryProductsRemove: "Move to another category",
+    categoryProductsMoveTitle: "Move to another category",
+    categoryProductsMoveDescription:
+      "Every product must belong to a category. Pick where this product should go next.",
+    categoryProductsMoveConfirm: "Move product",
+    categoryProductsNoProductsInCategory: "No products in this category yet.",
+    categoryProductsNoMatchesToAdd: "No products found to add.",
+    categoryProductsNeedSecondCategory:
+      "Create at least one other category before you can move products out of this one.",
+    categoryProductsUpdateFailed: "Could not update the product. Please try again.",
+    productCategoryRequired: "Please select a category for this product.",
 
     // Drivers
     drivers: "Drivers",
@@ -787,7 +806,26 @@ export const translations = {
     removeCategory: "إزالة",
     noCategories: "لا توجد فئات بعد.",
     categoryAddFailed: "فشل في إضافة الفئة.",
-    confirmDeleteCategory: "هل أنت متأكد من إزالة هذه الفئة؟ ستصبح المنتجات في هذه الفئة بدون تصنيف.",
+    confirmDeleteCategory:
+      "هل أنت متأكد من إزالة هذه الفئة؟ إذا كانت هناك منتجات ما زالت مرتبطة بها، قد يفشل الحذف حتى يتم نقلها إلى فئة أخرى.",
+
+    categoryProductsModalTitle: "منتجات هذه الفئة",
+    categoryProductsOpenHint: "عرض المنتجات",
+    categoryProductsAddSection: "إضافة منتج إلى هذه الفئة",
+    categoryProductsPickProduct: "اختر منتجاً",
+    categoryProductsAddButton: "إضافة إلى الفئة",
+    categoryProductsInCategory: "ضمن هذه الفئة",
+    categoryProductsRemove: "نقل إلى فئة أخرى",
+    categoryProductsMoveTitle: "نقل إلى فئة أخرى",
+    categoryProductsMoveDescription:
+      "يجب أن ينتمي كل منتج إلى فئة. اختر الفئة التالية لهذا المنتج.",
+    categoryProductsMoveConfirm: "نقل المنتج",
+    categoryProductsNoProductsInCategory: "لا توجد منتجات في هذه الفئة بعد.",
+    categoryProductsNoMatchesToAdd: "لا توجد منتجات مطابقة للإضافة.",
+    categoryProductsNeedSecondCategory:
+      "أنشئ فئة أخرى على الأقل قبل أن تتمكن من نقل المنتجات خارج هذه الفئة.",
+    categoryProductsUpdateFailed: "تعذر تحديث المنتج. حاول مرة أخرى.",
+    productCategoryRequired: "يرجى اختيار فئة لهذا المنتج.",
 
     // Drivers
     drivers: "السائقون",

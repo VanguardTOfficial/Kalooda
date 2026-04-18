@@ -17,6 +17,7 @@ import {
   MapPinned,
 } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
+import { useAdminAuth } from "@/contexts/admin-auth-context";
 import type { Product, Category, Driver } from "@/types/database";
 import { CatalogImageField } from "@/components/admin/catalog-image-field";
 import { AdminConfirmDialog } from "@/components/admin/confirm-dialog";
@@ -140,12 +141,18 @@ function formToPayload(form: ProductFormData) {
       ? form.allergens_ar.split(",").map((s) => s.trim()).filter(Boolean)
       : [],
     image_url: form.image_url || null,
-    category_id: form.category_id || null,
+    category_id: form.category_id.trim() || null,
   };
+}
+
+function productCategoryId(p: Pick<Product, "category_id">): string {
+  return p.category_id ?? "";
 }
 
 export default function FunctionsPage() {
   const { t, locale } = useLanguage();
+  const { profile } = useAdminAuth();
+  const isSuperAdmin = profile?.role === "super_admin";
   const [adminUi, dispatch] = useReducer(adminUiReducer, initialAdminUiState);
 
   const [activeTab, setActiveTab] = useState<FunctionsTab>("products");
@@ -170,6 +177,7 @@ export default function FunctionsPage() {
   const [newCategoryNameAr, setNewCategoryNameAr] = useState("");
   const [newCategoryImagePending, setNewCategoryImagePending] = useState<File | null>(null);
   const [addingCategory, setAddingCategory] = useState(false);
+  const [categoryAddOpen, setCategoryAddOpen] = useState(false);
   const [categoryEditOpen, setCategoryEditOpen] = useState(false);
   const [categoryEditForm, setCategoryEditForm] = useState({
     id: "",
@@ -180,12 +188,24 @@ export default function FunctionsPage() {
   const [categoryEditImagePending, setCategoryEditImagePending] = useState<File | null>(null);
   const [categoryEditSaving, setCategoryEditSaving] = useState(false);
   const [categoriesVisible, setCategoriesVisible] = useState(PAGE_SIZE);
+  const [categoryProductsCat, setCategoryProductsCat] = useState<Category | null>(
+    null
+  );
+  const [categoryProductsAddSelectedId, setCategoryProductsAddSelectedId] =
+    useState("");
+  const [categoryProductsError, setCategoryProductsError] = useState<string | null>(
+    null
+  );
+  const [categoryProductsBusy, setCategoryProductsBusy] = useState(false);
+  const [moveOutProduct, setMoveOutProduct] = useState<Product | null>(null);
+  const [moveOutTargetCategoryId, setMoveOutTargetCategoryId] = useState("");
 
   // --- Drivers state ---
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [newDriverName, setNewDriverName] = useState("");
   const [newDriverPhone, setNewDriverPhone] = useState("");
   const [addingDriver, setAddingDriver] = useState(false);
+  const [driverAddOpen, setDriverAddOpen] = useState(false);
   const [driversVisible, setDriversVisible] = useState(PAGE_SIZE);
   const [driversLoading, setDriversLoading] = useState(false);
 
@@ -294,12 +314,6 @@ export default function FunctionsPage() {
     void fetchSales();
   }, [fetchProducts, fetchCategories, fetchSales]);
 
-  function handleTabChange(tab: FunctionsTab) {
-    setActiveTab(tab);
-    if (tab === "drivers" && !driversLoaded.current) void fetchDrivers();
-    if (tab === "delivery_zones") void fetchDeliveryZones();
-  }
-
   async function toggleDeliveryZone(zone: DeliveryZoneRecord) {
     const nextActive = !zone.is_active;
     setDeliveryZones((prev) =>
@@ -389,6 +403,13 @@ export default function FunctionsPage() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim() || saving) return;
+    if (!form.category_id.trim()) {
+      dispatch({
+        type: "setProductFormError",
+        value: t("productCategoryRequired"),
+      });
+      return;
+    }
     dispatch({ type: "setProductFormError", value: null });
     setSaving(true);
 
@@ -498,9 +519,7 @@ export default function FunctionsPage() {
       setCategories((prev) =>
         [...prev, category].sort((a, b) => a.name.localeCompare(b.name))
       );
-      setNewCategoryName("");
-      setNewCategoryNameAr("");
-      setNewCategoryImagePending(null);
+      closeCategoryAdd();
     } catch {
       dispatch({ type: "setCategoryAddError", value: t("categoryAddFailed") });
     } finally {
@@ -525,6 +544,19 @@ export default function FunctionsPage() {
     setCategoryEditOpen(false);
     setCategoryEditImagePending(null);
     setCategoryEditForm({ id: "", name: "", name_ar: "", image_url: "" });
+  }
+
+  function openCategoryAdd() {
+    dispatch({ type: "setCategoryAddError", value: null });
+    setCategoryAddOpen(true);
+  }
+
+  function closeCategoryAdd() {
+    dispatch({ type: "setCategoryAddError", value: null });
+    setCategoryAddOpen(false);
+    setNewCategoryName("");
+    setNewCategoryNameAr("");
+    setNewCategoryImagePending(null);
   }
 
   async function saveCategoryEdit(e: React.FormEvent) {
@@ -593,6 +625,103 @@ export default function FunctionsPage() {
     }
   }
 
+  function openCategoryProductsModal(cat: Category) {
+    setCategoryProductsCat(cat);
+    setCategoryProductsAddSelectedId("");
+    setCategoryProductsError(null);
+    setCategoryProductsBusy(false);
+    setMoveOutProduct(null);
+    setMoveOutTargetCategoryId("");
+  }
+
+  function closeCategoryProductsModal() {
+    setCategoryProductsCat(null);
+    setCategoryProductsAddSelectedId("");
+    setCategoryProductsError(null);
+    setCategoryProductsBusy(false);
+    setMoveOutProduct(null);
+    setMoveOutTargetCategoryId("");
+  }
+
+  async function persistProductCategory(productId: string, categoryId: string) {
+    setCategoryProductsBusy(true);
+    setCategoryProductsError(null);
+    try {
+      const res = await fetch("/api/products", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: productId, category_id: categoryId }),
+      });
+      const json = (await res.json().catch(() => ({}))) as Product | { error?: string };
+      if (!res.ok) {
+        setCategoryProductsError(
+          typeof json === "object" &&
+            json &&
+            "error" in json &&
+            typeof json.error === "string"
+            ? json.error
+            : t("categoryProductsUpdateFailed")
+        );
+        return null;
+      }
+      const saved = json as Product;
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id === saved.id ? { ...p, ...saved, has_options: saved.has_options ?? p.has_options } : p
+        )
+      );
+      return saved;
+    } catch {
+      setCategoryProductsError(t("categoryProductsUpdateFailed"));
+      return null;
+    } finally {
+      setCategoryProductsBusy(false);
+    }
+  }
+
+  async function addSelectedProductToOpenCategory() {
+    if (!categoryProductsCat || !categoryProductsAddSelectedId) return;
+    const next = await persistProductCategory(
+      categoryProductsAddSelectedId,
+      categoryProductsCat.id
+    );
+    if (next) {
+      setCategoryProductsAddSelectedId("");
+    }
+  }
+
+  function beginMoveProductOutOfCategory(product: Product) {
+    if (categories.length < 2) {
+      setCategoryProductsError(t("categoryProductsNeedSecondCategory"));
+      return;
+    }
+    setCategoryProductsError(null);
+    setMoveOutProduct(product);
+    const fallback = categories.find((c) => c.id !== categoryProductsCat?.id);
+    setMoveOutTargetCategoryId(fallback?.id ?? "");
+  }
+
+  function cancelMoveProductOut() {
+    setMoveOutProduct(null);
+    setMoveOutTargetCategoryId("");
+    setCategoryProductsError(null);
+  }
+
+  async function confirmMoveProductOut() {
+    if (!moveOutProduct || !moveOutTargetCategoryId) return;
+    if (moveOutTargetCategoryId === categoryProductsCat?.id) {
+      setCategoryProductsError(t("categoryProductsUpdateFailed"));
+      return;
+    }
+    const next = await persistProductCategory(
+      moveOutProduct.id,
+      moveOutTargetCategoryId
+    );
+    if (next) {
+      cancelMoveProductOut();
+    }
+  }
+
   // --- Driver handlers ---
   async function addDriver(e: React.FormEvent) {
     e.preventDefault();
@@ -611,8 +740,7 @@ export default function FunctionsPage() {
       if (!res.ok) throw new Error();
       const driver: Driver = await res.json();
       setDrivers((prev) => [driver, ...prev]);
-      setNewDriverName("");
-      setNewDriverPhone("");
+      closeDriverAdd();
     } catch {
       dispatch({ type: "setDriverAddError", value: t("driverAddFailed") });
     } finally {
@@ -639,6 +767,18 @@ export default function FunctionsPage() {
         message: t("driverDeleteFailed"),
       });
     }
+  }
+
+  function openDriverAdd() {
+    dispatch({ type: "setDriverAddError", value: null });
+    setDriverAddOpen(true);
+  }
+
+  function closeDriverAdd() {
+    dispatch({ type: "setDriverAddError", value: null });
+    setDriverAddOpen(false);
+    setNewDriverName("");
+    setNewDriverPhone("");
   }
 
   // --- Sales handlers ---
@@ -804,6 +944,15 @@ export default function FunctionsPage() {
   const visibleCategories = categories.slice(0, categoriesVisible);
   const visibleDrivers = drivers.slice(0, driversVisible);
 
+  function handleTabChange(tab: FunctionsTab) {
+    if (tab !== "products" && showForm) closeForm();
+    if (tab !== "categories" && categoryAddOpen) closeCategoryAdd();
+    if (tab !== "drivers" && driverAddOpen) closeDriverAdd();
+    setActiveTab(tab);
+    if (tab === "drivers" && !driversLoaded.current) void fetchDrivers();
+    if (tab === "delivery_zones") void fetchDeliveryZones();
+  }
+
   return (
     <>
       <AdminConfirmDialog
@@ -819,6 +968,390 @@ export default function FunctionsPage() {
         }}
         onConfirm={() => void confirmPendingDelete()}
       />
+
+      {showForm ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal
+          aria-labelledby="product-form-title"
+          onClick={() => {
+            if (saving) return;
+            if (editingId && productFormTab === "options") return;
+            closeForm();
+          }}
+        >
+          <div
+            className="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl border border-admin-border bg-admin-panel p-6 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 id="product-form-title" className="font-semibold text-admin-ink">
+                {editingId ? t("editProduct") : t("addProduct")}
+              </h3>
+              <button
+                type="button"
+                onClick={closeForm}
+                disabled={saving}
+                className="rounded-lg p-1 text-admin-muted transition-colors hover:bg-[rgba(31,68,60,0.06)] hover:text-admin-muted disabled:opacity-50"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {adminUi.productFormError ? (
+              <div className="mb-4">
+                <InlineBanner variant="error">
+                  <p>{adminUi.productFormError}</p>
+                </InlineBanner>
+              </div>
+            ) : null}
+
+            {editingId ? (
+              <div className="mb-4 flex gap-1 rounded-lg bg-[rgba(31,68,60,0.06)] p-1">
+                <button
+                  type="button"
+                  onClick={() => setProductFormTab("details")}
+                  className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    productFormTab === "details"
+                      ? "bg-[#fffcf8] text-admin-ink shadow-sm"
+                      : "text-admin-muted hover:text-admin-ink"
+                  }`}
+                >
+                  {t("productDetailsTab")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProductFormTab("options")}
+                  className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                    productFormTab === "options"
+                      ? "bg-[#fffcf8] text-admin-ink shadow-sm"
+                      : "text-admin-muted hover:text-admin-ink"
+                  }`}
+                >
+                  {t("productOptionsTab")}
+                </button>
+              </div>
+            ) : null}
+
+            {editingId && productFormTab === "options" ? (
+              <ProductOptionsTab
+                productId={editingId}
+                onSaveSuccess={() => {
+                  void fetchProducts();
+                  closeForm();
+                }}
+              />
+            ) : (
+              <>
+                <div className="mb-4 flex gap-1 rounded-lg bg-[rgba(31,68,60,0.06)] p-1">
+                  {(["en", "ar"] as const).map((lang) => (
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() => setLangTab(lang)}
+                      className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                        langTab === lang
+                          ? "bg-[#fffcf8] text-admin-ink shadow-sm"
+                          : "text-admin-muted hover:text-admin-ink"
+                      }`}
+                    >
+                      {lang === "en" ? t("english") : t("arabic")}
+                    </button>
+                  ))}
+                </div>
+
+                <form onSubmit={handleSave} className="space-y-4">
+                  {langTab === "en" ? (
+                    <div className="space-y-4">
+                      <Field
+                        label={t("productName")}
+                        value={form.name}
+                        onChange={(v) => updateField("name", v)}
+                        required
+                      />
+                      <Field
+                        label={t("description")}
+                        value={form.description}
+                        onChange={(v) => updateField("description", v)}
+                        textarea
+                      />
+                      <Field
+                        label={t("ingredients")}
+                        value={form.ingredients}
+                        onChange={(v) => updateField("ingredients", v)}
+                        textarea
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-4" dir="rtl">
+                      <Field
+                        label={t("productNameAr")}
+                        value={form.name_ar}
+                        onChange={(v) => updateField("name_ar", v)}
+                      />
+                      <Field
+                        label={t("descriptionAr")}
+                        value={form.description_ar}
+                        onChange={(v) => updateField("description_ar", v)}
+                        textarea
+                      />
+                      <Field
+                        label={t("ingredientsAr")}
+                        value={form.ingredients_ar}
+                        onChange={(v) => updateField("ingredients_ar", v)}
+                        textarea
+                      />
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field
+                      label={t("price")}
+                      value={form.price}
+                      onChange={(v) => updateField("price", v)}
+                      type="number"
+                      required
+                    />
+                  </div>
+
+                  <Field
+                    label={t("allergens")}
+                    value={form.allergens}
+                    onChange={(v) => updateField("allergens", v)}
+                    placeholder={t("allergensPlaceholder")}
+                  />
+
+                  <Field
+                    label={t("allergensAr")}
+                    value={form.allergens_ar}
+                    onChange={(v) => updateField("allergens_ar", v)}
+                    placeholder={t("allergensArPlaceholder")}
+                  />
+
+                  <CatalogImageField
+                    label={t("catalogImage")}
+                    storedUrl={form.image_url}
+                    pendingFile={productImagePending}
+                    onPendingFileChange={setProductImagePending}
+                    onClear={() => updateField("image_url", "")}
+                    disabled={saving}
+                    chooseImageLabel={t("catalogImageHint")}
+                    removeImageLabel={t("removeCatalogImage")}
+                  />
+
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-admin-muted">
+                      {t("category")}
+                    </label>
+                    <select
+                      value={form.category_id}
+                      onChange={(e) => updateField("category_id", e.target.value)}
+                      className="admin-input"
+                    >
+                      <option value="">{t("selectCategory")}</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {locale === "ar" && c.name_ar ? c.name_ar : c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={closeForm}
+                      disabled={saving}
+                      className="rounded-lg border border-admin-border px-4 py-2 text-sm font-medium text-admin-muted transition-colors hover:bg-[rgba(31,68,60,0.06)] disabled:opacity-50"
+                    >
+                      {t("cancel")}
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={saving || !form.name.trim()}
+                      className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[#082018] transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {saving ? t("saving") : t("saveProduct")}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {categoryAddOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal
+          aria-labelledby="category-add-title"
+          onClick={() => {
+            if (!addingCategory) closeCategoryAdd();
+          }}
+        >
+          <div
+            className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-admin-border bg-admin-panel p-6 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 id="category-add-title" className="font-semibold text-admin-ink">
+                {t("addCategory")}
+              </h3>
+              <button
+                type="button"
+                onClick={closeCategoryAdd}
+                disabled={addingCategory}
+                className="rounded-lg p-1 text-admin-muted hover:bg-[rgba(31,68,60,0.06)] disabled:opacity-50"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={addCategory} className="space-y-4">
+              {adminUi.categoryAddError ? (
+                <InlineBanner variant="error">
+                  <p>{adminUi.categoryAddError}</p>
+                </InlineBanner>
+              ) : null}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-admin-muted">
+                  {t("categoryName")}
+                </label>
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder={t("categoryNamePlaceholder")}
+                  required
+                  className="w-full rounded-lg border border-admin-border bg-[#fffcf8] px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-admin-muted">
+                  {t("categoryNameAr")}
+                </label>
+                <input
+                  type="text"
+                  value={newCategoryNameAr}
+                  onChange={(e) => setNewCategoryNameAr(e.target.value)}
+                  placeholder={t("categoryNameArPlaceholder")}
+                  dir="rtl"
+                  className="w-full rounded-lg border border-admin-border bg-[#fffcf8] px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <CatalogImageField
+                label={t("catalogImage")}
+                storedUrl=""
+                pendingFile={newCategoryImagePending}
+                onPendingFileChange={setNewCategoryImagePending}
+                onClear={() => {}}
+                disabled={addingCategory}
+                chooseImageLabel={t("catalogImageHint")}
+                removeImageLabel={t("removeCatalogImage")}
+              />
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={closeCategoryAdd}
+                  disabled={addingCategory}
+                  className="rounded-lg border border-admin-border px-4 py-2 text-sm font-medium text-admin-muted hover:bg-[rgba(31,68,60,0.06)] disabled:opacity-50"
+                >
+                  {t("cancel")}
+                </button>
+                <button
+                  type="submit"
+                  disabled={addingCategory || !newCategoryName.trim()}
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[#082018] hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {addingCategory ? t("adding") : t("addCategory")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {driverAddOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal
+          aria-labelledby="driver-add-title"
+          onClick={() => {
+            if (!addingDriver) closeDriverAdd();
+          }}
+        >
+          <div
+            className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border border-admin-border bg-admin-panel p-6 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 id="driver-add-title" className="font-semibold text-admin-ink">
+                {t("addDriver")}
+              </h3>
+              <button
+                type="button"
+                onClick={closeDriverAdd}
+                disabled={addingDriver}
+                className="rounded-lg p-1 text-admin-muted hover:bg-[rgba(31,68,60,0.06)] disabled:opacity-50"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={addDriver} className="space-y-4">
+              {adminUi.driverAddError ? (
+                <InlineBanner variant="error">
+                  <p>{adminUi.driverAddError}</p>
+                </InlineBanner>
+              ) : null}
+              <div>
+                <label className="mb-1 block text-xs font-medium text-admin-muted">
+                  {t("driverName")}
+                </label>
+                <input
+                  type="text"
+                  value={newDriverName}
+                  onChange={(e) => setNewDriverName(e.target.value)}
+                  placeholder={t("driverNamePlaceholder")}
+                  required
+                  className="w-full rounded-lg border border-admin-border bg-[#fffcf8] px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-admin-muted">
+                  {t("driverPhone")}
+                </label>
+                <input
+                  type="tel"
+                  value={newDriverPhone}
+                  onChange={(e) => setNewDriverPhone(e.target.value)}
+                  placeholder={t("driverPhonePlaceholder")}
+                  className="w-full rounded-lg border border-admin-border bg-[#fffcf8] px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={closeDriverAdd}
+                  disabled={addingDriver}
+                  className="rounded-lg border border-admin-border px-4 py-2 text-sm font-medium text-admin-muted hover:bg-[rgba(31,68,60,0.06)] disabled:opacity-50"
+                >
+                  {t("cancel")}
+                </button>
+                <button
+                  type="submit"
+                  disabled={addingDriver || !newDriverName.trim()}
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[#082018] transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {addingDriver ? t("adding") : t("addDriver")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
 
       {/* Category edit modal */}
       {saleModalOpen ? (
@@ -1102,8 +1635,199 @@ export default function FunctionsPage() {
         </div>
       ) : null}
 
-      {/* Tab nav */}
-      <div className="mb-6 flex w-fit gap-1 rounded-xl border border-admin-border bg-admin-panel p-1">
+      {categoryProductsCat && isSuperAdmin ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal
+          aria-labelledby="category-products-title"
+          tabIndex={-1}
+          onKeyDown={(e) => {
+            if (e.key !== "Escape" || categoryProductsBusy) return;
+            e.stopPropagation();
+            if (moveOutProduct) cancelMoveProductOut();
+            else closeCategoryProductsModal();
+          }}
+        >
+          <div
+            className="absolute inset-0"
+            aria-hidden
+            onClick={() => {
+              if (categoryProductsBusy) return;
+              if (moveOutProduct) cancelMoveProductOut();
+              else closeCategoryProductsModal();
+            }}
+          />
+          <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-admin-border bg-admin-panel p-6 shadow-lg">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h3 id="category-products-title" className="font-semibold text-admin-ink">
+                  {t("categoryProductsModalTitle")}
+                </h3>
+                <p className="mt-1 text-sm text-admin-muted">
+                  {locale === "ar" && categoryProductsCat.name_ar
+                    ? categoryProductsCat.name_ar
+                    : categoryProductsCat.name}
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={categoryProductsBusy}
+                onClick={() => {
+                  if (moveOutProduct) cancelMoveProductOut();
+                  else closeCategoryProductsModal();
+                }}
+                className="shrink-0 rounded-lg p-1 text-admin-muted hover:bg-[rgba(31,68,60,0.06)] disabled:opacity-50"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {categoryProductsError ? (
+              <InlineBanner variant="error" className="mb-4">
+                <p>{categoryProductsError}</p>
+              </InlineBanner>
+            ) : null}
+
+            {moveOutProduct ? (
+              <div className="space-y-4 rounded-lg border border-admin-border bg-[#fffcf8] p-4">
+                <p className="text-sm font-semibold text-admin-ink">
+                  {t("categoryProductsMoveTitle")}
+                </p>
+                <p className="text-sm font-medium text-admin-ink">{moveOutProduct.name}</p>
+                <p className="text-xs text-admin-muted">{t("categoryProductsMoveDescription")}</p>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-admin-muted">
+                    {t("selectCategory")}
+                  </label>
+                  <select
+                    value={moveOutTargetCategoryId}
+                    onChange={(e) => setMoveOutTargetCategoryId(e.target.value)}
+                    disabled={categoryProductsBusy}
+                    className="admin-input w-full"
+                  >
+                    {categories
+                      .filter((c) => c.id !== categoryProductsCat.id)
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {locale === "ar" && c.name_ar ? c.name_ar : c.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div className="flex flex-wrap justify-end gap-2">
+                  <button
+                    type="button"
+                    disabled={categoryProductsBusy}
+                    onClick={cancelMoveProductOut}
+                    className="rounded-lg border border-admin-border px-4 py-2 text-sm font-medium text-admin-muted hover:bg-[rgba(31,68,60,0.06)]"
+                  >
+                    {t("cancel")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={
+                      categoryProductsBusy ||
+                      !moveOutTargetCategoryId ||
+                      moveOutTargetCategoryId === categoryProductsCat.id
+                    }
+                    onClick={() => void confirmMoveProductOut()}
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[#082018] hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {categoryProductsBusy ? t("saving") : t("categoryProductsMoveConfirm")}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="mb-6 rounded-lg border border-admin-border p-4">
+                  <p className="text-sm font-semibold text-admin-ink">
+                    {t("categoryProductsAddSection")}
+                  </p>
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+                    <div className="min-w-0 flex-1">
+                      <select
+                        value={categoryProductsAddSelectedId}
+                        onChange={(e) => setCategoryProductsAddSelectedId(e.target.value)}
+                        disabled={categoryProductsBusy}
+                        className="admin-input w-full"
+                        aria-label={t("categoryProductsPickProduct")}
+                      >
+                        <option value="">{t("categoryProductsPickProduct")}</option>
+                        {products
+                          .filter(
+                            (p) => productCategoryId(p) !== categoryProductsCat.id
+                          )
+                          .sort((a, b) => a.name.localeCompare(b.name))
+                          .map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {locale === "ar" && p.name_ar ? p.name_ar : p.name}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={
+                        categoryProductsBusy ||
+                        !categoryProductsAddSelectedId
+                      }
+                      onClick={() => void addSelectedProductToOpenCategory()}
+                      className="inline-flex shrink-0 items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[#082018] transition-colors hover:bg-primary/90 disabled:opacity-50"
+                    >
+                      {categoryProductsBusy ? t("saving") : t("categoryProductsAddButton")}
+                    </button>
+                  </div>
+                  {products.filter(
+                    (p) => productCategoryId(p) !== categoryProductsCat.id
+                  ).length === 0 ? (
+                    <p className="mt-2 text-xs text-admin-muted">
+                      {t("categoryProductsNoMatchesToAdd")}
+                    </p>
+                  ) : null}
+                </div>
+
+                <p className="mb-2 text-sm font-semibold text-admin-ink">
+                  {t("categoryProductsInCategory")}
+                </p>
+                <ul className="max-h-64 divide-y divide-admin-border overflow-y-auto rounded-lg border border-admin-border">
+                  {products
+                    .filter((p) => productCategoryId(p) === categoryProductsCat.id)
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((p) => (
+                      <li
+                        key={p.id}
+                        className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5"
+                      >
+                        <span className="min-w-0 text-sm text-admin-ink">
+                          {locale === "ar" && p.name_ar ? p.name_ar : p.name}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={categoryProductsBusy}
+                          onClick={() => beginMoveProductOutOfCategory(p)}
+                          className="shrink-0 rounded-lg border border-admin-border px-2.5 py-1 text-xs font-medium text-admin-ink transition-colors hover:bg-[rgba(31,68,60,0.06)] disabled:opacity-50"
+                        >
+                          {t("categoryProductsRemove")}
+                        </button>
+                      </li>
+                    ))}
+                  {products.filter(
+                    (p) => productCategoryId(p) === categoryProductsCat.id
+                  ).length === 0 ? (
+                    <li className="px-3 py-8 text-center text-sm text-admin-muted">
+                      {t("categoryProductsNoProductsInCategory")}
+                    </li>
+                  ) : null}
+                </ul>
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {/* Tab nav — full-width strip; scroll horizontally on small screens (avoids page-wide overflow / RTL striping) */}
+      <div className="mb-6 flex w-full min-w-0 max-w-full flex-nowrap gap-1 overflow-x-auto overscroll-x-contain rounded-xl border border-admin-border bg-admin-panel p-1 [-webkit-overflow-scrolling:touch]">
         {(
           [
             "products",
@@ -1118,7 +1842,7 @@ export default function FunctionsPage() {
             key={tab}
             type="button"
             onClick={() => handleTabChange(tab)}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+            className={`shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold transition-colors sm:px-4 ${
               activeTab === tab
                 ? "bg-admin-ink text-white"
                 : "text-admin-muted hover:bg-[rgba(31,68,60,0.05)] hover:text-admin-ink"
@@ -1149,214 +1873,15 @@ export default function FunctionsPage() {
               </div>
               <h2 className="text-lg font-semibold text-admin-ink">{t("products")}</h2>
             </div>
-            {!showForm && (
-              <button
-                onClick={openNewProduct}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[#082018] transition-colors hover:bg-primary/90"
-              >
-                <Plus className="h-4 w-4" />
-                {t("addProduct")}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={openNewProduct}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[#082018] transition-colors hover:bg-primary/90"
+            >
+              <Plus className="h-4 w-4" />
+              {t("addProduct")}
+            </button>
           </div>
-
-          {/* Product form */}
-          {showForm && (
-            <div className="mb-6 rounded-xl border border-admin-border bg-admin-panel p-6 shadow-sm">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="font-semibold text-admin-ink">
-                  {editingId ? t("editProduct") : t("addProduct")}
-                </h3>
-                <button
-                  onClick={closeForm}
-                  className="rounded-lg p-1 text-admin-muted transition-colors hover:bg-[rgba(31,68,60,0.06)] hover:text-admin-muted"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              {adminUi.productFormError ? (
-                <div className="mb-4">
-                  <InlineBanner variant="error">
-                    <p>{adminUi.productFormError}</p>
-                  </InlineBanner>
-                </div>
-              ) : null}
-
-              {editingId ? (
-                <div className="mb-4 flex gap-1 rounded-lg bg-[rgba(31,68,60,0.06)] p-1">
-                  <button
-                    type="button"
-                    onClick={() => setProductFormTab("details")}
-                    className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                      productFormTab === "details"
-                        ? "bg-[#fffcf8] text-admin-ink shadow-sm"
-                        : "text-admin-muted hover:text-admin-ink"
-                    }`}
-                  >
-                    {t("productDetailsTab")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setProductFormTab("options")}
-                    className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                      productFormTab === "options"
-                        ? "bg-[#fffcf8] text-admin-ink shadow-sm"
-                        : "text-admin-muted hover:text-admin-ink"
-                    }`}
-                  >
-                    {t("productOptionsTab")}
-                  </button>
-                </div>
-              ) : null}
-
-              {editingId && productFormTab === "options" ? (
-                <ProductOptionsTab
-                  productId={editingId}
-                  onSaveSuccess={() => {
-                    void fetchProducts();
-                    closeForm();
-                  }}
-                />
-              ) : (
-                <>
-                  {/* Language tabs */}
-                  <div className="mb-4 flex gap-1 rounded-lg bg-[rgba(31,68,60,0.06)] p-1">
-                    {(["en", "ar"] as const).map((lang) => (
-                      <button
-                        key={lang}
-                        type="button"
-                        onClick={() => setLangTab(lang)}
-                        className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                          langTab === lang
-                            ? "bg-[#fffcf8] text-admin-ink shadow-sm"
-                            : "text-admin-muted hover:text-admin-ink"
-                        }`}
-                      >
-                        {lang === "en" ? t("english") : t("arabic")}
-                      </button>
-                    ))}
-                  </div>
-
-                  <form onSubmit={handleSave} className="space-y-4">
-                {langTab === "en" ? (
-                  <div className="space-y-4">
-                    <Field
-                      label={t("productName")}
-                      value={form.name}
-                      onChange={(v) => updateField("name", v)}
-                      required
-                    />
-                    <Field
-                      label={t("description")}
-                      value={form.description}
-                      onChange={(v) => updateField("description", v)}
-                      textarea
-                    />
-                    <Field
-                      label={t("ingredients")}
-                      value={form.ingredients}
-                      onChange={(v) => updateField("ingredients", v)}
-                      textarea
-                    />
-                  </div>
-                ) : (
-                  <div className="space-y-4" dir="rtl">
-                    <Field
-                      label={t("productNameAr")}
-                      value={form.name_ar}
-                      onChange={(v) => updateField("name_ar", v)}
-                    />
-                    <Field
-                      label={t("descriptionAr")}
-                      value={form.description_ar}
-                      onChange={(v) => updateField("description_ar", v)}
-                      textarea
-                    />
-                    <Field
-                      label={t("ingredientsAr")}
-                      value={form.ingredients_ar}
-                      onChange={(v) => updateField("ingredients_ar", v)}
-                      textarea
-                    />
-                  </div>
-                )}
-
-                {/* Shared fields */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Field
-                    label={t("price")}
-                    value={form.price}
-                    onChange={(v) => updateField("price", v)}
-                    type="number"
-                    required
-                  />
-                </div>
-
-                <Field
-                  label={t("allergens")}
-                  value={form.allergens}
-                  onChange={(v) => updateField("allergens", v)}
-                  placeholder={t("allergensPlaceholder")}
-                />
-
-                <Field
-                  label={t("allergensAr")}
-                  value={form.allergens_ar}
-                  onChange={(v) => updateField("allergens_ar", v)}
-                  placeholder={t("allergensArPlaceholder")}
-                />
-
-                <CatalogImageField
-                  label={t("catalogImage")}
-                  storedUrl={form.image_url}
-                  pendingFile={productImagePending}
-                  onPendingFileChange={setProductImagePending}
-                  onClear={() => updateField("image_url", "")}
-                  disabled={saving}
-                  chooseImageLabel={t("catalogImageHint")}
-                  removeImageLabel={t("removeCatalogImage")}
-                />
-
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-admin-muted">
-                    {t("category")}
-                  </label>
-                  <select
-                    value={form.category_id}
-                    onChange={(e) => updateField("category_id", e.target.value)}
-                    className="admin-input"
-                  >
-                    <option value="">{t("selectCategory")}</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {locale === "ar" && c.name_ar ? c.name_ar : c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex items-center justify-end gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={closeForm}
-                    className="rounded-lg border border-admin-border px-4 py-2 text-sm font-medium text-admin-muted transition-colors hover:bg-[rgba(31,68,60,0.06)]"
-                  >
-                    {t("cancel")}
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={saving || !form.name.trim()}
-                    className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[#082018] transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {saving ? t("saving") : t("saveProduct")}
-                  </button>
-                </div>
-              </form>
-                </>
-              )}
-            </div>
-          )}
 
           {/* Products table */}
           <div className="overflow-hidden rounded-xl border border-admin-border bg-admin-panel shadow-sm">
@@ -1491,66 +2016,22 @@ export default function FunctionsPage() {
       {/* ── Categories tab ── */}
       {activeTab === "categories" && (
         <section>
-          <div className="mb-4 flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50">
-              <Tag className="h-4 w-4 text-amber-600" />
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50">
+                <Tag className="h-4 w-4 text-amber-600" />
+              </div>
+              <h2 className="text-lg font-semibold text-admin-ink">{t("categories")}</h2>
             </div>
-            <h2 className="text-lg font-semibold text-admin-ink">{t("categories")}</h2>
+            <button
+              type="button"
+              onClick={openCategoryAdd}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[#082018] transition-colors hover:bg-primary/90"
+            >
+              <Plus className="h-4 w-4" />
+              {t("addCategory")}
+            </button>
           </div>
-
-          <form onSubmit={addCategory} className="mb-4 flex flex-col gap-3">
-            {adminUi.categoryAddError ? (
-              <InlineBanner variant="error">
-                <p>{adminUi.categoryAddError}</p>
-              </InlineBanner>
-            ) : null}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="flex-1">
-                <label className="mb-1 block text-xs font-medium text-admin-muted">
-                  {t("categoryName")}
-                </label>
-                <input
-                  type="text"
-                  value={newCategoryName}
-                  onChange={(e) => setNewCategoryName(e.target.value)}
-                  placeholder={t("categoryNamePlaceholder")}
-                  required
-                  className="w-full rounded-lg border border-admin-border bg-[#fffcf8] px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="mb-1 block text-xs font-medium text-admin-muted">
-                  {t("categoryNameAr")}
-                </label>
-                <input
-                  type="text"
-                  value={newCategoryNameAr}
-                  onChange={(e) => setNewCategoryNameAr(e.target.value)}
-                  placeholder={t("categoryNameArPlaceholder")}
-                  dir="rtl"
-                  className="w-full rounded-lg border border-admin-border bg-[#fffcf8] px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={addingCategory || !newCategoryName.trim()}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[#082018] transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Plus className="h-4 w-4" />
-                {addingCategory ? t("adding") : t("addCategory")}
-              </button>
-            </div>
-            <CatalogImageField
-              label={t("catalogImage")}
-              storedUrl=""
-              pendingFile={newCategoryImagePending}
-              onPendingFileChange={setNewCategoryImagePending}
-              onClear={() => {}}
-              disabled={addingCategory}
-              chooseImageLabel={t("catalogImageHint")}
-              removeImageLabel={t("removeCatalogImage")}
-            />
-          </form>
 
           <div className="overflow-hidden rounded-xl border border-admin-border bg-admin-panel shadow-sm">
             <div className="overflow-x-auto">
@@ -1569,7 +2050,20 @@ export default function FunctionsPage() {
                 <tbody className="divide-y divide-admin-border">
                   {visibleCategories.map((cat) => (
                     <tr key={cat.id}>
-                      <td className="px-4 py-3 font-medium text-admin-ink">{cat.name}</td>
+                      <td className="px-4 py-3 font-medium text-admin-ink">
+                        {isSuperAdmin ? (
+                          <button
+                            type="button"
+                            title={t("categoryProductsOpenHint")}
+                            onClick={() => openCategoryProductsModal(cat)}
+                            className="text-start text-admin-ink underline-offset-2 hover:underline"
+                          >
+                            {cat.name}
+                          </button>
+                        ) : (
+                          cat.name
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-admin-muted" dir="rtl">
                         {cat.name_ar || <span className="text-admin-muted">—</span>}
                       </td>
@@ -1827,55 +2321,22 @@ export default function FunctionsPage() {
       {/* ── Drivers tab ── */}
       {activeTab === "drivers" && (
         <section>
-          <div className="mb-4 flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[rgba(31,68,60,0.06)]">
-              <Users className="h-4 w-4 text-admin-muted" />
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[rgba(31,68,60,0.06)]">
+                <Users className="h-4 w-4 text-admin-muted" />
+              </div>
+              <h2 className="text-lg font-semibold text-admin-ink">{t("drivers")}</h2>
             </div>
-            <h2 className="text-lg font-semibold text-admin-ink">{t("drivers")}</h2>
+            <button
+              type="button"
+              onClick={openDriverAdd}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[#082018] transition-colors hover:bg-primary/90"
+            >
+              <Plus className="h-4 w-4" />
+              {t("addDriver")}
+            </button>
           </div>
-
-          <form onSubmit={addDriver} className="mb-4 flex flex-col gap-3">
-            {adminUi.driverAddError ? (
-              <InlineBanner variant="error">
-                <p>{adminUi.driverAddError}</p>
-              </InlineBanner>
-            ) : null}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="flex-1">
-                <label className="mb-1 block text-xs font-medium text-admin-muted">
-                  {t("driverName")}
-                </label>
-                <input
-                  type="text"
-                  value={newDriverName}
-                  onChange={(e) => setNewDriverName(e.target.value)}
-                  placeholder={t("driverNamePlaceholder")}
-                  required
-                  className="w-full rounded-lg border border-admin-border bg-[#fffcf8] px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="mb-1 block text-xs font-medium text-admin-muted">
-                  {t("driverPhone")}
-                </label>
-                <input
-                  type="tel"
-                  value={newDriverPhone}
-                  onChange={(e) => setNewDriverPhone(e.target.value)}
-                  placeholder={t("driverPhonePlaceholder")}
-                  className="w-full rounded-lg border border-admin-border bg-[#fffcf8] px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={addingDriver || !newDriverName.trim()}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[#082018] transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Plus className="h-4 w-4" />
-                {addingDriver ? t("adding") : t("addDriver")}
-              </button>
-            </div>
-          </form>
 
           <div className="overflow-hidden rounded-xl border border-admin-border bg-admin-panel shadow-sm">
             <div className="overflow-x-auto">

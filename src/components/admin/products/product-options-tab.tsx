@@ -58,6 +58,21 @@ function isDirty(baseline: Junction[], draft: Junction[]): boolean {
   return junctionsSignature(baseline) !== junctionsSignature(draft);
 }
 
+function normalizeSingleJunctionRow(
+  j: Junction,
+  catalogOptions: CatalogOption[]
+): Junction {
+  const o = catalogOptions.find((x) => x.id === j.option_id);
+  if (!o || o.type === "multiple") return j;
+  return {
+    ...j,
+    min_select: 1,
+    max_select: 1,
+    items_free: 0,
+    must_select_count: 1,
+  };
+}
+
 function makeDraftJunction(
   productId: string,
   optionId: string,
@@ -73,7 +88,7 @@ function makeDraftJunction(
     min_select: isMultiple ? 0 : 1,
     max_select: isMultiple ? 50 : 1,
     items_free: 0,
-    must_select_count: 0,
+    must_select_count: isMultiple ? 0 : 1,
   };
 }
 
@@ -109,22 +124,52 @@ type JunctionUpsertBody = {
   must_select_count: number;
 };
 
-/** POST new links, PATCH existing — order matches draft (same as prior loop). */
-async function upsertOrderedProductJunctions(
-  productId: string,
-  ordered: Junction[],
-  baselineIds: Set<string>
-): Promise<void> {
-  for (let i = 0; i < ordered.length; i++) {
-    const j = ordered[i];
-    const body: JunctionUpsertBody = {
+function junctionPersistPayload(
+  j: Junction,
+  sortOrder: number,
+  catalogOptions: CatalogOption[]
+): JunctionUpsertBody {
+  const o = catalogOptions.find((x) => x.id === j.option_id);
+  if (o?.type === "multiple") {
+    return {
       option_id: j.option_id,
-      sort_order: i,
+      sort_order: sortOrder,
       min_select: j.min_select,
       max_select: j.max_select,
       items_free: j.items_free,
       must_select_count: j.must_select_count,
     };
+  }
+  if (o && o.type !== "multiple") {
+    return {
+      option_id: j.option_id,
+      sort_order: sortOrder,
+      min_select: 1,
+      max_select: 1,
+      items_free: 0,
+      must_select_count: 1,
+    };
+  }
+  return {
+    option_id: j.option_id,
+    sort_order: sortOrder,
+    min_select: j.min_select,
+    max_select: j.max_select,
+    items_free: j.items_free,
+    must_select_count: j.must_select_count,
+  };
+}
+
+/** POST new links, PATCH existing — order matches draft (same as prior loop). */
+async function upsertOrderedProductJunctions(
+  productId: string,
+  ordered: Junction[],
+  baselineIds: Set<string>,
+  catalogOptions: CatalogOption[]
+): Promise<void> {
+  for (let i = 0; i < ordered.length; i++) {
+    const j = ordered[i];
+    const body = junctionPersistPayload(j, i, catalogOptions);
     const isNew = !baselineIds.has(j.option_id);
     const res = await fetch(`/api/admin/products/${productId}/options`, {
       method: isNew ? "POST" : "PATCH",
@@ -138,11 +183,14 @@ async function upsertOrderedProductJunctions(
 function SortableJunctionRow({
   junction,
   title,
+  isSingleChoice,
   onDetach,
   onPatch,
 }: {
   junction: Junction;
   title: string;
+  /** Single-choice steps use fixed min/max/free/must; hide the quantity row. */
+  isSingleChoice: boolean;
   onDetach: () => void;
   onPatch: (partial: Partial<Junction>) => void;
 }) {
@@ -178,59 +226,61 @@ function SortableJunctionRow({
       </button>
       <div className="min-w-0 flex-1">
         <p className="font-medium text-admin-ink">{title}</p>
-        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <label className="text-xs text-admin-muted">
-            min
-            <input
-              type="number"
-              className="admin-input mt-1 w-full"
-              value={junction.min_select}
-              onChange={(e) =>
-                onPatch({ min_select: Math.max(0, Number(e.target.value) || 0) })
-              }
-            />
-          </label>
-          <label className="text-xs text-admin-muted">
-            max
-            <input
-              type="number"
-              className="admin-input mt-1 w-full"
-              value={junction.max_select}
-              onChange={(e) =>
-                onPatch({
-                  max_select: Math.max(1, Number(e.target.value) || 1),
-                })
-              }
-            />
-          </label>
-          <label className="text-xs text-admin-muted">
-            free
-            <input
-              type="number"
-              className="admin-input mt-1 w-full"
-              value={junction.items_free}
-              onChange={(e) =>
-                onPatch({ items_free: Math.max(0, Number(e.target.value) || 0) })
-              }
-            />
-          </label>
-          <label className="text-xs text-admin-muted">
-            must
-            <input
-              type="number"
-              className="admin-input mt-1 w-full"
-              value={junction.must_select_count}
-              onChange={(e) =>
-                onPatch({
-                  must_select_count: Math.max(
-                    0,
-                    Number(e.target.value) || 0
-                  ),
-                })
-              }
-            />
-          </label>
-        </div>
+        {!isSingleChoice ? (
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <label className="text-xs text-admin-muted">
+              min
+              <input
+                type="number"
+                className="admin-input mt-1 w-full"
+                value={junction.min_select}
+                onChange={(e) =>
+                  onPatch({ min_select: Math.max(0, Number(e.target.value) || 0) })
+                }
+              />
+            </label>
+            <label className="text-xs text-admin-muted">
+              max
+              <input
+                type="number"
+                className="admin-input mt-1 w-full"
+                value={junction.max_select}
+                onChange={(e) =>
+                  onPatch({
+                    max_select: Math.max(1, Number(e.target.value) || 1),
+                  })
+                }
+              />
+            </label>
+            <label className="text-xs text-admin-muted">
+              free
+              <input
+                type="number"
+                className="admin-input mt-1 w-full"
+                value={junction.items_free}
+                onChange={(e) =>
+                  onPatch({ items_free: Math.max(0, Number(e.target.value) || 0) })
+                }
+              />
+            </label>
+            <label className="text-xs text-admin-muted">
+              must
+              <input
+                type="number"
+                className="admin-input mt-1 w-full"
+                value={junction.must_select_count}
+                onChange={(e) =>
+                  onPatch({
+                    must_select_count: Math.max(
+                      0,
+                      Number(e.target.value) || 0
+                    ),
+                  })
+                }
+              />
+            </label>
+          </div>
+        ) : null}
       </div>
       <button
         type="button"
@@ -279,16 +329,20 @@ export function ProductOptionsTab({
           fetch(`/api/admin/products/${productId}/options`),
           fetch("/api/admin/options"),
         ]);
+        let catalog: CatalogOption[] = [];
+        if (oRes.ok) {
+          const oData = (await oRes.json()) as { options?: CatalogOption[] };
+          catalog = oData.options ?? [];
+          setCatalogOptions(catalog);
+        }
         if (jRes.ok) {
           const jData = (await jRes.json()) as { junctions?: Junction[] };
-          const list = jData.junctions ?? [];
+          const list = (jData.junctions ?? []).map((row) =>
+            normalizeSingleJunctionRow(row, catalog)
+          );
           const normalized = withSortOrder(list);
           setBaseline(cloneJunctions(normalized));
           setDraft(cloneJunctions(normalized));
-        }
-        if (oRes.ok) {
-          const oData = (await oRes.json()) as { options?: CatalogOption[] };
-          setCatalogOptions(oData.options ?? []);
         }
       } finally {
         if (showSpinner) setLoading(false);
@@ -378,7 +432,8 @@ export function ProductOptionsTab({
       await upsertOrderedProductJunctions(
         productId,
         withSortOrder(draft),
-        baselineIds
+        baselineIds,
+        catalogOptions
       );
 
       await load(false);
@@ -436,15 +491,21 @@ export function ProductOptionsTab({
           strategy={verticalListSortingStrategy}
         >
           <ul className="space-y-2">
-            {draft.map((j) => (
-              <SortableJunctionRow
-                key={j.option_id}
-                junction={j}
-                title={optionTitle(j.option_id)}
-                onDetach={() => detachFromDraft(j.option_id)}
-                onPatch={(partial) => patchDraftRow(j.option_id, partial)}
-              />
-            ))}
+            {draft.map((j) => {
+              const opt = catalogOptions.find((x) => x.id === j.option_id);
+              const isSingleChoice =
+                opt != null && opt.type !== "multiple";
+              return (
+                <SortableJunctionRow
+                  key={j.option_id}
+                  junction={j}
+                  title={optionTitle(j.option_id)}
+                  isSingleChoice={isSingleChoice}
+                  onDetach={() => detachFromDraft(j.option_id)}
+                  onPatch={(partial) => patchDraftRow(j.option_id, partial)}
+                />
+              );
+            })}
           </ul>
         </SortableContext>
       </DndContext>

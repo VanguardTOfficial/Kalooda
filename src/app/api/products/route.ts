@@ -66,6 +66,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const categoryId =
+      typeof category_id === "string" && category_id.trim()
+        ? category_id.trim()
+        : "";
+    if (!categoryId) {
+      return NextResponse.json(
+        { error: "category_id is required" },
+        { status: 400 }
+      );
+    }
+
     const { data, error } = await supabaseAdmin
       .from("products")
       .insert({
@@ -78,7 +89,7 @@ export async function POST(req: NextRequest) {
         ingredients_ar: ingredients_ar?.trim() || null,
         allergens: allergens ?? [],
         image_url: image_url?.trim() || null,
-        category_id: category_id || null,
+        category_id: categoryId,
       })
       .select()
       .single();
@@ -129,8 +140,17 @@ export async function PUT(req: NextRequest) {
     if (fields.allergens !== undefined) update.allergens = fields.allergens;
     if (fields.image_url !== undefined)
       update.image_url = fields.image_url?.trim() || null;
-    if (fields.category_id !== undefined)
-      update.category_id = fields.category_id || null;
+    if (fields.category_id !== undefined) {
+      const nextCategory =
+        typeof fields.category_id === "string" ? fields.category_id.trim() : "";
+      if (!nextCategory) {
+        return NextResponse.json(
+          { error: "category_id cannot be empty" },
+          { status: 400 }
+        );
+      }
+      update.category_id = nextCategory;
+    }
 
     const { data, error } = await supabaseAdmin
       .from("products")

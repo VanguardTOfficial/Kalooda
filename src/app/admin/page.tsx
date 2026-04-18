@@ -691,14 +691,14 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      {/* Tab nav */}
-      <div className="mb-6 flex w-fit gap-1 rounded-xl border border-admin-border bg-admin-panel p-1">
+      {/* Tab nav — scroll on narrow viewports to avoid horizontal page overflow */}
+      <div className="mb-6 flex w-full min-w-0 max-w-full flex-nowrap gap-1 overflow-x-auto overscroll-x-contain rounded-xl border border-admin-border bg-admin-panel p-1 [-webkit-overflow-scrolling:touch]">
         {tabs.map(({ key, label }) => (
           <button
             key={key}
             type="button"
             onClick={() => handleTabChange(key)}
-            className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+            className={`shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold transition-colors sm:px-4 ${
               activeTab === key
                 ? "bg-admin-ink text-white"
                 : "text-admin-muted hover:bg-[rgba(31,68,60,0.05)] hover:text-admin-ink"

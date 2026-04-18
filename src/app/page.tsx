@@ -157,8 +157,8 @@ export default function HomePage() {
                   {t("noProducts")}
                 </p>
               ) : (
-                chefSelections.map((p) => (
-                  <ProductCard key={p.id} product={p} />
+                chefSelections.map((p, i) => (
+                  <ProductCard key={p.id} product={p} priority={i === 0} />
                 ))
               )}
             </div>

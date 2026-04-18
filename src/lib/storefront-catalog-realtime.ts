@@ -13,6 +13,16 @@ export type StorefrontCatalogRealtimeEvent =
 
 const listeners = new Set<(e: StorefrontCatalogRealtimeEvent) => void>();
 let sharedChannel: RealtimeChannel | null = null;
+/** Avoid removeChannel during React Strict Mode's mount→cleanup→remount gap (noisy WS teardown). */
+let pendingTeardown: ReturnType<typeof setTimeout> | null = null;
+const TEARDOWN_DELAY_MS = 900;
+
+function cancelPendingTeardown() {
+  if (pendingTeardown) {
+    clearTimeout(pendingTeardown);
+    pendingTeardown = null;
+  }
+}
 
 function emit(event: StorefrontCatalogRealtimeEvent) {
   listeners.forEach((fn) => {
@@ -39,6 +49,7 @@ function normalizePostgresPayload(
 }
 
 function ensureChannelSubscribed() {
+  cancelPendingTeardown();
   if (sharedChannel) return;
 
   const supabase = getSupabaseCustomerBrowser();
@@ -91,10 +102,15 @@ export function subscribeStorefrontCatalog(
   ensureChannelSubscribed();
   return () => {
     listeners.delete(listener);
-    if (listeners.size === 0 && sharedChannel) {
+    if (listeners.size > 0 || !sharedChannel) return;
+
+    cancelPendingTeardown();
+    pendingTeardown = setTimeout(() => {
+      pendingTeardown = null;
+      if (listeners.size > 0 || !sharedChannel) return;
       const supabase = getSupabaseCustomerBrowser();
       void supabase.removeChannel(sharedChannel);
       sharedChannel = null;
-    }
+    }, TEARDOWN_DELAY_MS);
   };
 }

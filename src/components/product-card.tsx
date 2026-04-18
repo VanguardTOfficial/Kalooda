@@ -20,7 +20,14 @@ const productEmoji: Record<string, string> = {
   "prod-8": "🍓",
 };
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({
+  product,
+  priority = false,
+}: {
+  product: Product;
+  /** First visible card on the home grid — improves LCP when this image wins paint. */
+  priority?: boolean;
+}) {
   const { t, locale } = useLanguage();
   const [imgLoaded, setImgLoaded] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -86,6 +93,8 @@ export function ProductCard({ product }: { product: Product }) {
                 src={product.image_url.trim()}
                 alt={name}
                 fill
+                priority={priority}
+                loading={priority ? "eager" : undefined}
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                 className={`object-cover transition-all duration-500 ease-out group-hover:scale-105 ${imgLoaded ? "opacity-100" : "opacity-0"}`}
                 onLoad={() => setImgLoaded(true)}
