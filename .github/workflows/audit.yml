@@ -38,14 +38,17 @@ jobs:
         if: always()
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          EXIT_CODE: ${{ steps.audit.outputs.exit_code }}
         run: |
-          if [ "${{ steps.audit.outputs.exit_code }}" = "0" ]; then
+          if [ "$EXIT_CODE" = "0" ]; then
             TEXT=":white_check_mark: *Weekly dependency audit passed* — no high or critical vulnerabilities found."
           else
-            VULNS=$(cat audit_result.json | node -e "const d=require('fs').readFileSync('/dev/stdin','utf8'); const j=JSON.parse(d); console.log(j.metadata?.vulnerabilities ? JSON.stringify(j.metadata.vulnerabilities) : 'unknown')" 2>/dev/null || echo "check GitHub Actions for details")
-            TEXT=":warning: *Weekly dependency audit found vulnerabilities* — $VULNS\nSee: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            TEXT=":warning: *Weekly dependency audit found vulnerabilities* — see $RUN_URL"
           fi
+          PAYLOAD=$(jq -n --arg channel "C0ASJHCE9AR" --arg text "$TEXT" \
+            '{"channel": $channel, "text": $text}')
           curl -s -X POST "https://slack.com/api/chat.postMessage" \
             -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "{\"channel\": \"C0ASJHCE9AR\", \"text\": \"$TEXT\"}"
+            -d "$PAYLOAD"
