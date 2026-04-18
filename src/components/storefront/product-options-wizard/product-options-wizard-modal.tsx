@@ -198,10 +198,11 @@ function ProductModalHero({
     locale === "ar" && product.description_ar
       ? product.description_ar
       : product.description;
-  const ingredients =
+  const ingredientsRaw =
     locale === "ar" && product.ingredients_ar
       ? product.ingredients_ar
       : product.ingredients;
+  const ingredientsText = (ingredientsRaw ?? "").trim();
   const emoji = productEmoji[product.id] ?? "🍰";
   const showImage =
     product.image_url && isHttpUrl(product.image_url.trim());
@@ -225,9 +226,23 @@ function ProductModalHero({
             />
           </>
         ) : (
-          <div className="flex h-full min-h-0 items-center justify-center">
-            <span className="text-5xl drop-shadow-md sm:text-6xl">{emoji}</span>
-          </div>
+          <>
+            <div
+              className="absolute inset-0 flex items-center justify-center"
+              aria-hidden
+            >
+              <span className="text-5xl drop-shadow-md sm:text-6xl">
+                {emoji}
+              </span>
+            </div>
+            <div
+              className="pointer-events-none absolute inset-0 opacity-[0.07]"
+              aria-hidden
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%231F443C' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+              }}
+            />
+          </>
         )}
       </div>
 
@@ -245,13 +260,13 @@ function ProductModalHero({
         ) : null}
       </div>
 
-      {ingredients.trim() ? (
+      {ingredientsText ? (
         <div>
           <h3 className="text-[10px] font-semibold uppercase tracking-wider text-ink-soft">
             {t("ingredients")}
           </h3>
           <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-ink sm:line-clamp-3">
-            {ingredients}
+            {ingredientsText}
           </p>
         </div>
       ) : null}

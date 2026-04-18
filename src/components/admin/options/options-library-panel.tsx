@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
 
 type ChoiceRow = {
@@ -119,29 +119,43 @@ export function OptionsLibraryPanel() {
 
   return (
     <div className="space-y-8">
-      {!createFormOpen ? (
-        <button
-          type="button"
-          onClick={() => setCreateFormOpen(true)}
-          className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[#082018] transition-colors hover:bg-primary/90"
-        >
-          {t("addOption")}
-        </button>
-      ) : null}
+      <button
+        type="button"
+        onClick={() => setCreateFormOpen(true)}
+        className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[#082018] transition-colors hover:bg-primary/90"
+      >
+        {t("addOption")}
+      </button>
 
       {createFormOpen ? (
-      <div className="rounded-xl border border-admin-border bg-admin-panel p-6 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="font-semibold text-admin-ink">{t("createOption")}</h3>
-          <button
-            type="button"
-            onClick={closeCreateForm}
-            className="rounded-lg border border-admin-border bg-white px-3 py-1.5 text-sm font-medium text-admin-ink hover:bg-[rgba(31,68,60,0.04)]"
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal
+          aria-labelledby="option-create-title"
+          onClick={() => {
+            if (!creating) closeCreateForm();
+          }}
+        >
+          <div
+            className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-admin-border bg-admin-panel p-6 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
           >
-            {t("cancel")}
-          </button>
-        </div>
-        <form onSubmit={handleCreate} className="mt-4 space-y-4">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h3 id="option-create-title" className="font-semibold text-admin-ink">
+                {t("createOption")}
+              </h3>
+              <button
+                type="button"
+                onClick={closeCreateForm}
+                disabled={creating}
+                className="rounded-lg p-1 text-admin-muted hover:bg-[rgba(31,68,60,0.06)] disabled:opacity-50"
+                aria-label={t("cancel")}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreate} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs font-medium text-admin-muted">
@@ -240,15 +254,26 @@ export function OptionsLibraryPanel() {
               + {t("addChoice")}
             </button>
           </div>
-          <button
-            type="submit"
-            disabled={creating}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[#082018]"
-          >
-            {creating ? t("saving") : t("saveOption")}
-          </button>
-        </form>
-      </div>
+              <div className="flex flex-wrap justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={closeCreateForm}
+                  disabled={creating}
+                  className="rounded-lg border border-admin-border px-4 py-2 text-sm font-medium text-admin-muted hover:bg-[rgba(31,68,60,0.06)] disabled:opacity-50"
+                >
+                  {t("cancel")}
+                </button>
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-[#082018] disabled:opacity-50"
+                >
+                  {creating ? t("saving") : t("saveOption")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       ) : null}
 
       <div className="overflow-hidden rounded-xl border border-admin-border bg-admin-panel shadow-sm">

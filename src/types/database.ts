@@ -14,7 +14,8 @@ export interface Product {
   name: string;
   description: string;
   price: number;
-  ingredients: string;
+  /** Nullable in API/DB; normalize at boundaries when a non-null string is required. */
+  ingredients: string | null;
   allergens: string[];
   image_url: string;
   name_ar: string | null;

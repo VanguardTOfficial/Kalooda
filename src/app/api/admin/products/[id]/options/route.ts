@@ -108,7 +108,8 @@ export async function POST(
         min_select: b.min_select ?? defaultMin,
         max_select: b.max_select ?? defaultMax,
         items_free: b.items_free ?? 0,
-        must_select_count: b.must_select_count ?? 0,
+        must_select_count:
+          b.must_select_count ?? (isMultiple ? 0 : 1),
         hidden_conditional: b.hidden_conditional ?? null,
         display_name_en: b.display_name_en?.trim() || null,
         display_name_ar: b.display_name_ar?.trim() || null,

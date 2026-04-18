@@ -4,7 +4,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/contexts/auth-context";
 import { useLanguage } from "@/contexts/language-context";
-import { LanguageSwitcher } from "@/components/language-switcher";
 import { ShoppingBag, User } from "lucide-react";
 
 export function SiteFooter() {
@@ -26,9 +25,6 @@ export function SiteFooter() {
                 className="h-11 w-auto object-contain opacity-95 transition-opacity group-hover:opacity-100"
               />
             </Link>
-            <div className="mt-6">
-              <LanguageSwitcher className="inline-flex items-center gap-2 rounded-lg border border-[#1F443C]/15 bg-white/50 px-4 py-2.5 text-sm font-medium text-ink hover:border-[#D3A94C]/45 hover:bg-white transition-colors" />
-            </div>
           </div>
 
           <div>
