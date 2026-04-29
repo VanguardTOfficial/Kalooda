@@ -21,16 +21,22 @@ export function LocationMapPicker({
   language,
 }: LocationMapPickerProps) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const { lat: centerLat, lng: centerLng } = center;
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
   const markerRef = useRef<google.maps.Marker | null>(null);
   const listenersRef = useRef<google.maps.MapsEventListener[]>([]);
   const onMarkerChangeRef = useRef(onMarkerChange);
-  onMarkerChangeRef.current = onMarkerChange;
+  const initialCenterRef = useRef({ lat: centerLat, lng: centerLng });
+
+  useEffect(() => {
+    onMarkerChangeRef.current = onMarkerChange;
+  }, [onMarkerChange]);
 
   useEffect(() => {
     if (!apiKey || !containerRef.current) return;
     const el = containerRef.current;
+    const initialCenter = initialCenterRef.current;
     let cancelled = false;
 
     void (async () => {
@@ -39,7 +45,7 @@ export function LocationMapPicker({
         if (cancelled || !el) return;
 
         const map = new googleObj.maps.Map(el, {
-          center,
+          center: initialCenter,
           zoom: 15,
           disableDefaultUI: true,
           gestureHandling: "greedy",
@@ -48,7 +54,7 @@ export function LocationMapPicker({
         mapRef.current = map;
 
         const marker = new googleObj.maps.Marker({
-          position: center,
+          position: initialCenter,
           map,
           draggable: true,
         });
@@ -89,9 +95,9 @@ export function LocationMapPicker({
     const map = mapRef.current;
     const marker = markerRef.current;
     if (!map || !marker) return;
-    map.panTo(center);
-    marker.setPosition(center);
-  }, [center.lat, center.lng]);
+    map.panTo({ lat: centerLat, lng: centerLng });
+    marker.setPosition({ lat: centerLat, lng: centerLng });
+  }, [centerLat, centerLng]);
 
   if (!apiKey) return null;
 
