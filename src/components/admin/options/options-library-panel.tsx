@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pencil, Trash2, X } from "lucide-react";
 import { useLanguage } from "@/contexts/language-context";
+import { ModalBackdrop } from "@/components/ui/modal-backdrop";
 
 type ChoiceRow = {
   id?: string;
@@ -217,18 +218,16 @@ export function OptionsLibraryPanel() {
       </button>
 
       {formOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        <ModalBackdrop
+          onClose={closeForm}
+          disabled={saving}
           role="dialog"
           aria-modal
           aria-labelledby="option-form-title"
-          onClick={() => {
-            if (!saving) closeForm();
-          }}
         >
           <div
             className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-admin-border bg-admin-panel p-6 shadow-lg"
-            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h3 id="option-form-title" className="font-semibold text-admin-ink">
@@ -403,7 +402,7 @@ export function OptionsLibraryPanel() {
               </div>
             </form>
           </div>
-        </div>
+        </ModalBackdrop>
       ) : null}
 
       <div className="overflow-hidden rounded-xl border border-admin-border bg-admin-panel shadow-sm">

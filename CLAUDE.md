@@ -9,6 +9,21 @@ At the start of every new chat session, sync with the default branch before othe
 
 A plain `git pull` on a feature branch only updates that branch’s remote tracking branch — it does **not** bring in latest **`main`**, which is what you need to avoid surprise PR conflicts.
 
+# GitHub Wiki
+
+The project wiki lives at https://github.com/VanguardTOfficial/Kalooda/wiki and is the source of truth for integrations, credentials, and environment variables. It is cloneable at `https://github.com/VanguardTOfficial/Kalooda.wiki.git`.
+
+**You must update the wiki whenever any of the following happens:**
+- A new external service/platform is integrated (payments, SMS, analytics, etc.)
+- A new environment variable is added or removed
+- A new token or API key is created — document: what it's for, where it's stored, which environments
+- An existing credential is rotated or expires
+- A service is removed or replaced
+
+**How to update:** clone/pull the wiki repo, edit the relevant `.md` file, commit and push.
+
+**Always remind the user** if a change they're making requires a wiki update that you cannot do automatically (e.g. a new token they need to create in a dashboard).
+
 # Pushing Changes
 
 Whenever the user says "push", "push changes", "push to GitHub", or anything similar, always:

@@ -40,15 +40,13 @@ const isProductionBuild = process.env.NODE_ENV === "production";
 export default withSentryConfig(nextConfig, {
   org: "vanguardt",
   project: "javascript-nextjs",
-
-  // Upload source maps to Sentry for readable stack traces.
-  // Requires SENTRY_AUTH_TOKEN env var (set in Vercel, not committed).
   silent: true,
 
   // Sentry webpack injection is for production builds; skipping it in dev
   // avoids extra compilation work on every `next dev` refresh.
   ...(isProductionBuild
     ? {
+        sourcemaps: { disable: false },
         webpack: {
           autoInstrumentServerFunctions: true,
           autoInstrumentMiddleware: true,

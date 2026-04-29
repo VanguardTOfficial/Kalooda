@@ -566,7 +566,11 @@ export function ProductStorefrontModal({
         type="button"
         className="absolute inset-0 bg-black/45 backdrop-blur-sm"
         aria-label="Close"
-        onClick={onClose}
+        onMouseDown={(e) => { e.currentTarget.dataset.closeIntent = "true"; }}
+        onClick={(e) => {
+          if (e.currentTarget.dataset.closeIntent === "true") onClose();
+          delete e.currentTarget.dataset.closeIntent;
+        }}
       />
       <div className="relative flex max-h-[min(92vh,820px)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[#1F443C]/15 bg-[#fffcf8] shadow-[var(--shadow-elevated)]">
         <button
